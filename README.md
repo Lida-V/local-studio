@@ -1,6 +1,6 @@
 # Local Studio
 
-Windows用のローカル制作チャット。Open WebUIを専用Electronウィンドウで開き、Qwenの文章・画像理解、ComfyUI Animaの画像生成、ファイル操作を利用できます。Codex／Claude Code向けのstdio MCPとCLIも付属します。
+Windows用のローカル制作チャット。Open WebUIを専用Electronウィンドウで開き、Qwenの文章・画像理解、ComfyUIによるAnima／Qwen Image 2.1の画像生成、MiniMax H3の音声付き動画生成、ファイル操作を利用できます。Codex／Claude Code向けのstdio MCPとCLIも付属します。
 
 ## 機能
 
@@ -8,7 +8,8 @@ Windows用のローカル制作チャット。Open WebUIを専用Electronウィ�
 - 会話履歴・画像・資料添付の保存
 - メモリ内ブラウザセッションと、終了時の専用キャッシュ削除
 - ローカルQwenへの文章／画像入力
-- ComfyUIとのGPUメモリ交代によるAnima画像生成
+- ComfyUIとのGPUメモリ交代によるAnima／Qwen Image 2.1画像・MiniMax H3動画生成
+- 4モデルのLoRA準備画面と素材フォルダ作成（学習・モデル取得は開始しません）
 - workspace内のテキスト編集と上書き前バックアップ
 - 画面で承認したPowerShellコマンドの実行
 - MCPから長い処理を受け付け、再接続後に結果を取得
@@ -19,7 +20,7 @@ Windows用のローカル制作チャット。Open WebUIを専用Electronウィ�
 
 Windows 10/11 x64、PowerShell 7.2以降、Python 3.11、Node.js 22.12以降、npm、uv。QwenのCUDA版には対応するNVIDIA GPUとドライバーが必要です。
 
-現在は `C:\AI\LocalLLM`、Qwen `127.0.0.1:18080`、Open WebUI `127.0.0.1:18081` の固定構成です。別の保存先・ポートへの変更はまだサポートしていません。モデル取得だけで約18 GBあり、依存関係と利用データの追加領域も必要です。基になった環境は24 GB VRAMのRTX 4090で検証しました。他GPUでの性能・適合性は未確認です。
+現在は `C:\AI\LocalLLM`、Qwen `127.0.0.1:18080`、Open WebUI `127.0.0.1:18081` の固定構成です。別の保存先・ポートへの変更はまだサポートしていません。初期Qwenモデル取得だけで約18 GBあり、依存関係と利用データの追加領域も必要です。基になった環境は24 GB VRAMのRTX 4090で検証しました。他GPUでの性能・適合性は未確認です。
 
 ## 導入
 
@@ -46,6 +47,8 @@ pwsh -File scripts/Setup.ps1 -Python 'C:/path/to/Python311/python.exe' -Install
 
 別途ComfyUIを `127.0.0.1:8188` で起動します。付属ワークフローは `anima-base-v1.0.safetensors`、`qwen_3_06b_base.safetensors`、`qwen_image_vae.safetensors` と、それらのローダーに対応する環境が必要です。本リポジトリはComfyUI／モデル／カスタムノードを自動導入しません。`config/anima-chat-workflow.json` を確認し、実際の環境に合わせてください。
 
+画像・動画の追加モデルは [モデル設定ガイド](docs/MEDIA-AND-TRAINING.md) を参照してください。追加の重み・カスタムノードは別途必要です。
+
 ## Codex／Claude Code
 
 Setupで生成される `.codex/config.toml` と `.mcp.json` をこのプロジェクトで読み込ませます。生成された設定はGit対象外です。別プロジェクトでも使う場合は、同じ起動コマンドを各クライアントのユーザー設定へ登録してください。ツールが見えない場合はMCP接続を再起動します。
@@ -55,22 +58,27 @@ Setupで生成される `.codex/config.toml` と `.mcp.json` をこのプロジ�
 | `studio_status` | 接続・ワーカー状態 |
 | `ask_qwen` | 文章／workspace画像をQwenへ渡す |
 | `generate_anima` | Animaで新規画像を生成 |
+| `generate_qwen_image` | Qwen Image 2.1で新規画像を生成 |
+| `generate_minimax_video` | MiniMax H3で短い音声付き動画を生成 |
+| `training_guide` | 4モデルの学習準備案内 |
+| `prepare_training` | 素材・設定例のフォルダのみ作成 |
 | `task_result` | job_idで結果を取得 |
 | `list_workspace` | ファイル一覧 |
 | `read_workspace_file` | UTF-8ファイルを読む |
 | `write_workspace_file` | 保存・バックアップ付き編集 |
 
-`ask_qwen` と `generate_anima` はjob_idを返します。実処理は独立ワーカーで進むため、MCP接続を閉じても継続します。MCPの単発処理はデスクトップのチャット一覧へ自動追加しません。
+`ask_qwen` と3つの生成ツール はjob_idを返します。実処理は独立ワーカーで進むため、MCP接続を閉じても継続します。MCPの単発処理はデスクトップのチャット一覧へ自動追加しません。
 
 ## 検証
 
 ```powershell
 python scripts/Verify-Source.py
 python scripts/Test-ChatTools.py
+python scripts/Test-MediaRoutes.py
 node --check desktop/main.cjs
 ```
 
-基になったローカル環境で、専用ウィンドウ・終了時キャッシュ削除・履歴／画像保持・MCP 7ツール・再接続中のAnima生成完了を確認しました。テスト結果と制限は [docs/VALIDATION.md](docs/VALIDATION.md) に区別して記載しています。
+基になったローカル環境で、専用ウィンドウ・終了時キャッシュ削除・履歴／画像保持・MCP 11ツール・再接続中のAnima生成完了を確認しました。テスト結果と制限は [docs/VALIDATION.md](docs/VALIDATION.md) に区別して記載しています。
 
 詳しい運用は [ユーザーガイド](docs/USER-GUIDE.md)、公開範囲と依存ライセンスは [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を参照してください。
 

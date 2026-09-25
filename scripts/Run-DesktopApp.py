@@ -38,6 +38,7 @@ def main():
     (ROOT / 'runtime').mkdir(exist_ok=True)
     env = os.environ.copy()
     env.pop('ELECTRON_RUN_AS_NODE', None)
+    env['LOCAL_STUDIO_SOURCE'] = str(SUPPORT)
     with (ROOT / 'runtime/desktop.lock').open('a+b') as lock:
         lock.seek(0)
         try:

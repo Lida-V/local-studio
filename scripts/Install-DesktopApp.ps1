@@ -5,7 +5,7 @@ $config=Get-Content -LiteralPath "$support/config/support-config.json" -Raw | Co
 $root=$config.target.root
 $app=Join-Path $root 'apps/local-studio-desktop'
 New-Item -ItemType Directory -Force -Path $app,"$root/cache/npm-desktop","$root/cache/electron-download" | Out-Null
-Copy-Item -LiteralPath "$support/desktop/package-lock.json","$support/desktop/package.json","$support/desktop/main.cjs","$support/desktop/preload.cjs" -Destination $app -Force
+Copy-Item -LiteralPath "$support/desktop/package-lock.json","$support/desktop/package.json","$support/desktop/main.cjs","$support/desktop/preload.cjs","$support/desktop/training.html","$support/desktop/training-ui.js","$support/desktop/training-preload.cjs" -Destination $app -Force
 $env:ELECTRON_CACHE="$root/cache/electron-download"
 $env:electron_config_cache="$root/cache/electron-download"
 Push-Location -LiteralPath $app

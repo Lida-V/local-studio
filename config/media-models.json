@@ -1,0 +1,99 @@
+{
+  "anima": {
+    "label": "Anima",
+    "kind": "image",
+    "url": "http://127.0.0.1:8188",
+    "workflow": "anima-chat-workflow.json",
+    "startScript": "Start-ComfyUI.ps1",
+    "output": "9",
+    "prompt": [
+      "3",
+      "text"
+    ],
+    "dimensions": "5",
+    "seed": [
+      "6",
+      "seed"
+    ],
+    "loaders": [
+      [
+        "1",
+        "unet_name"
+      ],
+      [
+        "2",
+        "clip_name"
+      ],
+      [
+        "7",
+        "vae_name"
+      ]
+    ]
+  },
+  "qwen-image-2.1": {
+    "label": "Qwen Image 2.1",
+    "kind": "image",
+    "url": "http://127.0.0.1:8191",
+    "workflow": "qwen-image21-workflow.json",
+    "startScript": "Start-ComfyUIQwen21.ps1",
+    "output": "8",
+    "prompt": [
+      "4",
+      "prompt"
+    ],
+    "dimensions": "5",
+    "seed": [
+      "6",
+      "seed"
+    ],
+    "loaders": [
+      [
+        "1",
+        "unet_name"
+      ],
+      [
+        "2",
+        "clip_name"
+      ],
+      [
+        "3",
+        "vae_name"
+      ]
+    ]
+  },
+  "minimax-h3": {
+    "label": "MiniMax H3",
+    "kind": "video",
+    "url": "http://127.0.0.1:8188",
+    "workflow": "minimax-h3-workflow.json",
+    "startScript": "Start-ComfyUI.ps1",
+    "output": "17",
+    "prompt": [
+      "8",
+      "prompt"
+    ],
+    "dimensions": "8",
+    "seed": [
+      "9",
+      "noise_seed"
+    ],
+    "loaders": [
+      [
+        "1",
+        "vae_name"
+      ],
+      [
+        "2",
+        "vae_name"
+      ],
+      [
+        "3",
+        "clip_name"
+      ],
+      [
+        "4",
+        "unet_name"
+      ]
+    ]
+  }
+}

@@ -1,8 +1,8 @@
 """
 title: Local Studio
 author: Local Studio contributors
-description: ComfyUI Anima generation, workspace files and confirmed PowerShell commands.
-version: 1.0.0
+description: Anima / Qwen Image 2.1 / MiniMax H3, workspace files and confirmed PowerShell commands.
+version: 1.1.0
 required_open_webui_version: 0.11.4
 """
 import asyncio
@@ -58,94 +58,76 @@ def workspace_path(relative):
     return p
 
 
-def generate(prompt, width, height, seed, return_path=False):
-    if not GENERATION_LOCK.acquire(blocking=False):
-        raise RuntimeError('Another Local Studio generation is running.')
-    lease = (ROOT / 'runtime/studio-generation.lock').open('a+b')
-    try:
-        lease.seek(0)
-        msvcrt.locking(lease.fileno(), msvcrt.LK_NBLCK, 1)
-    except OSError:
-        lease.close()
-        GENERATION_LOCK.release()
-        raise RuntimeError('Another Local Studio generation is running.')
-    stopped = False
-    submitted = False
-    job_done = False
-    try:
-        try:
-            queue = api(COMFY + '/queue', timeout=3)
-        except OSError:
-            if COMFY_SUPPORT is None:
-                raise RuntimeError('Start ComfyUI on 127.0.0.1:8188 before generating an image.')
-            script(COMFY_SUPPORT / 'scripts/Start-ComfyUI.ps1')
-            queue = api(COMFY + '/queue')
-        if queue['queue_running'] or queue['queue_pending']:
-            raise RuntimeError('ComfyUI is busy. Existing jobs were left untouched; retry when idle.')
-        workflow = json.loads((SUPPORT / 'config/anima-chat-workflow.json').read_text(encoding='utf-8-sig'))
-        for node_id, field in [('1', 'unet_name'), ('2', 'clip_name'), ('7', 'vae_name')]:
-            node = workflow[node_id]
-            info = api(COMFY + '/object_info/' + node['class_type'])
-            if node['inputs'][field] not in info[node['class_type']]['input']['required'][field][0]:
-                raise RuntimeError('Required model unavailable: ' + node['inputs'][field])
-        workflow['3']['inputs']['text'] = prompt
-        workflow['5']['inputs'].update(width=width, height=height)
-        workflow['6']['inputs']['seed'] = seed
-        run_id = time.strftime('%Y%m%d-%H%M%S') + '-' + uuid.uuid4().hex[:6]
-        workflow['9']['inputs']['filename_prefix'] = 'LocalLLM/' + run_id
-        destination = WORK / 'images' / run_id
-        destination.mkdir(parents=True)
-        (destination / 'workflow.json').write_text(json.dumps(workflow, ensure_ascii=False, indent=2), encoding='utf-8')
-        script(SUPPORT / 'scripts/Stop-LocalLLM.ps1')
-        stopped = True
-        result = api(COMFY + '/prompt', {'prompt': workflow, 'client_id': 'local-llm-' + run_id})
-        prompt_id = result['prompt_id']
-        submitted = True
-        (destination / 'job.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
-        deadline = time.monotonic() + 900
-        while time.monotonic() < deadline:
-            history = api(COMFY + '/history/' + prompt_id)
-            if prompt_id in history:
-                job_done = True
-                record = history[prompt_id]
-                (destination / 'history.json').write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding='utf-8')
-                if record.get('status', {}).get('status_str') == 'error':
-                    raise RuntimeError('ComfyUI generation failed; see ' + str(destination / 'history.json'))
-                images = record.get('outputs', {}).get('9', {}).get('images', [])
-                if not images:
-                    raise RuntimeError('No saved image returned by ComfyUI.')
-                item = images[0]
-                with urllib.request.urlopen(COMFY + '/view?' + urllib.parse.urlencode(item), timeout=30) as response:
-                    data = response.read()
-                (destination / 'image.png').write_bytes(data)
-                return str(destination / 'image.png') if return_path else data
-            time.sleep(1)
-        raise TimeoutError('Generation still running. Do not start Qwen until ComfyUI is idle. Job: ' + prompt_id)
-    finally:
-        try:
-            if stopped:
-                queue = api(COMFY + '/queue')
-                if (not submitted or job_done) and not queue['queue_running'] and not queue['queue_pending']:
-                    api(COMFY + '/free', {'unload_models': True, 'free_memory': True})
-                    time.sleep(2)
-                    script(SUPPORT / 'scripts/Start-LocalLLM.ps1')
-        finally:
-            lease.seek(0)
-            msvcrt.locking(lease.fileno(), msvcrt.LK_UNLCK, 1)
-            lease.close()
-            GENERATION_LOCK.release()
+def media_runtime():
+    import sys
+    from types import SimpleNamespace
+    if str(SUPPORT / 'tools') not in sys.path:
+        sys.path.insert(0, str(SUPPORT / 'tools'))
+    import media_runtime as runtime
+    return runtime, SimpleNamespace(**globals())
+
+
+def generate(prompt, width, height, seed, return_path=False, model='anima', seconds=2):
+    runtime, context = media_runtime()
+    return runtime.generate(context, prompt, width, height, seed, return_path, model, seconds)
 
 
 class Tools:
+    async def training_guide(self) -> list:
+        """Show LoRA preparation routes for Anima, Qwen Image 2.1, MiniMax H3 and Qwen3.8. Does not install, download or train."""
+        _, context = media_runtime()
+        import training_routes
+        return training_routes.profiles(context)
+
+    async def prepare_training(self, model: str, name: str) -> dict:
+        """Create a LoRA preparation folder and dataset examples only. NO training or download. model: anima/qwen-image-2.1/minimax-h3/qwen3.8; name: ASCII letters/digits/-/_ up to 64."""
+        _, context = media_runtime()
+        import training_routes
+        return training_routes.prepare(context, model, name)
+
     async def studio_status(self) -> dict:
-        """Read ComfyUI connection/queue status and local workspace location. Never starts or stops anything."""
+        """Read local model routes, ComfyUI queues and workspace. Does not start anything."""
         def read():
-            try:
-                queue = api(COMFY + '/queue', timeout=3)
-                return {'comfyui': 'online', 'running': len(queue['queue_running']), 'pending': len(queue['queue_pending']), 'workspace': str(WORK)}
-            except OSError:
-                return {'comfyui': 'offline', 'workspace': str(WORK), 'can_start_for_generation': True}
+            runtime, context = media_runtime()
+            active = runtime.queues(context)
+            return {'models': runtime.models(context), 'queues': active, 'workspace': str(WORK)}
         return await asyncio.to_thread(read)
+
+    async def create_qwen_image(self, prompt: str, width: int = 1024, height: int = 1024, seed: int = 42, __event_emitter__=None) -> str:
+        """Create a NEW image with Qwen Image 2.1 (not Qwen3.8). Does not edit an existing image. Dimensions 512–1536 by 64, <=1.5 MP. Qwen chat resumes after generation."""
+        data = await asyncio.to_thread(generate, prompt, width, height, seed, False, 'qwen-image-2.1')
+        image_url = 'data:image/png;base64,' + base64.b64encode(data).decode()
+        if __event_emitter__:
+            await __event_emitter__({'type': 'files', 'data': {'files': [{'type': 'image', 'name': 'Qwen-Image-2.1.png', 'url': image_url}]}})
+        return image_url
+
+    async def create_minimax_video(self, prompt: str, width: int = 608, height: int = 352, seconds: int = 2, seed: int = 42, __event_emitter__=None) -> dict:
+        """Generate a NEW local MiniMax H3 video with sound. English prompt including motion and sound. 1–5 seconds, dimensions 256–1024 by 32, <=0.75 MP. Rounded to H3 frame geometry. Qwen resumes after generation. Include the returned video_embed marker verbatim in your final reply to display the video."""
+        if __event_emitter__:
+            await __event_emitter__({'type': 'status', 'data': {'description': 'MiniMax H3で音声付き動画を生成中', 'done': False}})
+        try:
+            path = await asyncio.to_thread(generate, prompt, width, height, seed, True, 'minimax-h3', seconds)
+            def upload():
+                import httpx
+                base = 'http://127.0.0.1:18081'
+                with httpx.Client(timeout=120) as client:
+                    login = client.post(base + '/api/v1/auths/signin', json={'email': 'admin@localhost', 'password': 'admin'})
+                    login.raise_for_status()
+                    with Path(path).open('rb') as stream:
+                        response = client.post(base + '/api/v1/files/?process=false', headers={'Authorization': 'Bearer ' + login.json()['token']}, files={'file': ('MiniMax-H3.mp4', stream, 'video/mp4')})
+                    response.raise_for_status()
+                    return response.json()
+            file = await asyncio.to_thread(upload)
+            url = '/api/v1/files/' + file['id'] + '/content'
+            # A block HTML token is required by Open WebUI 0.11.4's video renderer.
+            embed = '<div><video>' + url + '</video></div>'
+            if __event_emitter__:
+                await __event_emitter__({'type': 'files', 'data': {'files': [{'type': 'file', 'id': file['id'], 'name': 'MiniMax-H3.mp4', 'url': url, 'content_type': 'video/mp4'}]}})
+                await __event_emitter__({'type': 'message', 'data': {'content': '\n\n' + embed + '\n\n'}})
+            return {'video_path': path, 'download_url': url, 'video_embed': embed, 'model': 'MiniMax H3'}
+        finally:
+            if __event_emitter__:
+                await __event_emitter__({'type': 'status', 'data': {'description': '動画生成処理を終了しました', 'done': True}})
 
     async def create_anima_image(self, prompt: str, width: int = 1024, height: int = 1024, seed: int = 42, __event_emitter__=None) -> str:
         """Generate one image locally with ComfyUI Anima. Temporarily pauses Qwen, then restores chat. Returns the actual image. Use detailed English image prompts. Does not edit an existing image.
