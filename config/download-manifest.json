@@ -1,0 +1,12 @@
+{
+  "checkedOn": "2026-09-25",
+  "modelRepository": "unsloth/Qwen3.8-27B-GGUF",
+  "modelRevision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+  "runtimeRelease": "b11146",
+  "files": [
+    {"name":"llama-b11146-bin-win-cuda-12.4-x64.zip","folder":"downloads","size":253869799,"sha256":"3c806a6ceccc3dae1c743ceb1a1fb2cce5b76f40bfbd4c6b7b8afb6ef45a5807","url":"https://github.com/ggml-org/llama.cpp/releases/download/b11146/llama-b11146-bin-win-cuda-12.4-x64.zip"},
+    {"name":"cudart-llama-bin-win-cuda-12.4-x64.zip","folder":"downloads","size":391443627,"sha256":"8c79a9b226de4b3cacfd1f83d24f962d0773be79f1e7b75c6af4ded7e32ae1d6","url":"https://github.com/ggml-org/llama.cpp/releases/download/b11146/cudart-llama-bin-win-cuda-12.4-x64.zip"},
+    {"name":"Qwen3.8-27B-UD-Q4_K_M.gguf","folder":"models/Qwen3.8-27B","size":16464440224,"sha256":"322e194ff79741c7baa497c240f677f54b201b0efab44ca8e50f122b39123482","url":"https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/4ca720788d1e01f1bff70c033e0d0028fd02e502/Qwen3.8-27B-UD-Q4_K_M.gguf"},
+    {"name":"mmproj-F16.gguf","folder":"models/Qwen3.8-27B","size":927607488,"sha256":"cbb841a9ee0636b2ec172f5bb8df2ea8dfeb01e90fe7c6126581d662a0b4e43e","url":"https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/4ca720788d1e01f1bff70c033e0d0028fd02e502/mmproj-F16.gguf"}
+  ]
+}

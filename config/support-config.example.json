@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "target": {
+    "root": "C:\\AI\\LocalLLM",
+    "executable": "C:\\AI\\LocalLLM\\bin\\llama.cpp-b11146\\llama-server.exe",
+    "defaultUrl": "http://127.0.0.1:18080"
+  },
+  "inference": {
+    "host": "127.0.0.1",
+    "port": 18080,
+    "alias": "qwen3.8-27b-local",
+    "contextSize": 8192,
+    "parallel": 1,
+    "modelPath": "C:\\AI\\LocalLLM\\models\\Qwen3.8-27B\\Qwen3.8-27B-UD-Q4_K_M.gguf",
+    "mmprojPath": "C:\\AI\\LocalLLM\\models\\Qwen3.8-27B\\mmproj-F16.gguf",
+    "gpuLayers": 99,
+    "flashAttention": "on"
+  },
+  "chatApp": {
+    "name": "Open WebUI",
+    "version": "0.11.4",
+    "python": "C:\\AI\\LocalLLM\\apps\\open-webui\\.venv\\Scripts\\python.exe",
+    "host": "127.0.0.1",
+    "port": 18081,
+    "url": "http://127.0.0.1:18081",
+    "dataRoot": "C:\\AI\\LocalLLM\\data\\open-webui",
+    "workspace": "C:\\AI\\LocalLLM\\workspace",
+    "modelId": "local-studio-agent",
+    "comfyUrl": "http://127.0.0.1:8188"
+  },
+  "supporter": {
+    "pythonExecutable": "python"
+  }
+}

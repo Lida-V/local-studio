@@ -1,0 +1,8 @@
+{
+  "name": "local-studio-desktop",
+  "productName": "Local Studio",
+  "version": "1.0.0",
+  "private": true,
+  "main": "main.cjs",
+  "dependencies": { "electron": "44.4.5" }
+}
