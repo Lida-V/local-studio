@@ -39,6 +39,23 @@ class FileInspection(unittest.IsolatedAsyncioTestCase):
         self.assertIn('合言葉', tail['content'])
         self.assertFalse(tail['truncated'])
 
+    async def test_oversized_line_requests_return_bounded_continuation(self):
+        content = ''.join(f'{i:03d}\n' for i in range(500))
+        (self.project / 'pages.txt').write_bytes(content.encode('utf8'))
+        for start, requested in [(60, 200), (300, 160), (300, 157)]:
+            result = await self.tool.read_workspace_file('pages.txt', start, requested)
+            self.assertNotIn('error', result)
+            self.assertEqual(result['requested_max_lines'], requested)
+            self.assertEqual(result['effective_max_lines'], 120)
+            self.assertEqual(result['content'], ''.join(content.splitlines(True)[start - 1:start + 119]))
+            self.assertEqual(result['next_line'], start + 120)
+            self.assertEqual(result['next_column'], 0)
+            self.assertTrue(result['truncated'])
+            rest = await self.tool.read_workspace_file('pages.txt', result['next_line'])
+            self.assertTrue(rest['content'].startswith(f'{start + 119:03d}\n'))
+        for invalid in (0, -1):
+            self.assertIn('error', await self.tool.read_workspace_file('pages.txt', max_lines=invalid))
+
     async def test_encodings_binary_missing_and_outside(self):
         for encoding in ('utf8', 'utf-16', 'cp932'):
             path = self.project / (encoding + '.txt')
@@ -49,6 +66,16 @@ class FileInspection(unittest.IsolatedAsyncioTestCase):
             result = await self.tool.read_workspace_file(path)
             self.assertIn('error', result)
             self.assertIn('next_step', result)
+
+    async def test_image_path_errors_and_japanese_filename(self):
+        with self.assertRaisesRegex(ValueError, 'not a folder'):
+            await self.tool.open_workspace_image('.')
+        with self.assertRaisesRegex(ValueError, 'does not exist'):
+            await self.tool.open_workspace_image('missing.png')
+        from PIL import Image
+        Image.new('RGB', (2, 2), 'blue').save(self.project / '青い画像.png')
+        result = await self.tool.open_workspace_image('青い画像.png')
+        self.assertTrue(result.startswith('data:image/png;base64,'))
 
     async def test_directory_pagination_no_silent_cutoff(self):
         for i in range(170): (self.project / f'{i:03d}.txt').touch()

@@ -187,6 +187,10 @@ class Tools:
         :param path: Relative image file path inside the user-selected project folder.
         """
         p = workspace_path(path)
+        if not p.exists():
+            raise ValueError('Image file does not exist. Use search_workspace or list_workspace and pass an exact returned file path.')
+        if not p.is_file():
+            raise ValueError('Specify an image file, not a folder. Use list_workspace to select a PNG/JPEG/WebP file.')
         if p.stat().st_size > 15000000:
             raise ValueError('Image exceeds 15 MB.')
         from PIL import Image
@@ -215,7 +219,7 @@ class Tools:
         return await background(workspace_files.inspect, SimpleNamespace(**globals()), workspace_files.search, directory, query=query, content=content, offset=offset)
 
     async def read_workspace_file(self, path: str, start_line: int = 1, max_lines: int = 60, start_column: int = 0) -> dict:
-        """Read a text excerpt (UTF-8/UTF-16/CP932), max 2400 characters. For truncated output continue with next_line AND next_column. Supports files up to 16 MB. Paths relative to current_project."""
+        """Read a text excerpt (UTF-8/UTF-16/CP932), max 2400 characters and 120 lines. Larger positive max_lines requests are capped automatically. For truncated output continue with next_line AND next_column. Supports files up to 16 MB. Paths relative to current_project."""
         project_module()
         import workspace_files
         from types import SimpleNamespace

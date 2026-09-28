@@ -8,6 +8,7 @@ import time
 
 TEXT_LIMIT = 16 * 1024 * 1024
 OUTPUT_LIMIT = 2400
+LINE_LIMIT = 120
 SKIP_DIRS = {'.git', '.venv', 'venv', 'node_modules', '__pycache__', '.cache'}
 
 
@@ -31,8 +32,10 @@ def text_file(path, limit=TEXT_LIMIT):
 
 
 def read(root, path, start_line=1, max_lines=60, start_column=0):
-    if start_line < 1 or not 1 <= max_lines <= 120 or start_column < 0:
-        raise ValueError('start_line >= 1, max_lines 1..120, start_column >= 0.')
+    if start_line < 1 or max_lines < 1 or start_column < 0:
+        raise ValueError('start_line >= 1, max_lines >= 1, start_column >= 0.')
+    requested_lines = max_lines
+    max_lines = min(max_lines, LINE_LIMIT)
     text, encoding = text_file(path)
     lines = text.splitlines(keepends=True)
     if start_line > max(1, len(lines)):
@@ -48,6 +51,8 @@ def read(root, path, start_line=1, max_lines=60, start_column=0):
     more = index < len(lines)
     return {'path': path.relative_to(root).as_posix(), 'encoding': encoding, 'total_lines': len(lines),
             'start_line': start_line, 'start_column': start_column, 'content': ''.join(parts),
+            'requested_max_lines': requested_lines, 'effective_max_lines': max_lines,
+            'character_limit': OUTPUT_LIMIT,
             'truncated': more, 'next_line': index + 1 if more else None,
             'next_column': column if more else None}
 
