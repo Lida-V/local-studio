@@ -2,7 +2,7 @@
 title: Local Studio
 author: Local Studio contributors
 description: Anima / Qwen Image 2.1 / MiniMax H3, workspace files and confirmed PowerShell commands.
-version: 1.1.0
+version: 1.2.0
 required_open_webui_version: 0.11.4
 """
 import asyncio
@@ -50,12 +50,23 @@ def script(path):
     return output
 
 
+def project_module():
+    import sys
+    from types import SimpleNamespace
+    if str(SUPPORT / 'tools') not in sys.path:
+        sys.path.insert(0, str(SUPPORT / 'tools'))
+    import project_workspace
+    return project_workspace, SimpleNamespace(**globals())
+
+
+def current_project():
+    module, context = project_module()
+    return module.current(context)
+
+
 def workspace_path(relative):
-    WORK.mkdir(parents=True, exist_ok=True)
-    p = (WORK / relative).resolve()
-    if not p.is_relative_to(WORK.resolve()) or ':' in str(relative) or Path(relative).is_absolute():
-        raise ValueError('Use a relative path inside C:/AI/LocalLLM/workspace; outside paths and links are rejected.')
-    return p
+    module, context = project_module()
+    return module.resolve(context, relative)
 
 
 def media_runtime():
@@ -64,7 +75,11 @@ def media_runtime():
     if str(SUPPORT / 'tools') not in sys.path:
         sys.path.insert(0, str(SUPPORT / 'tools'))
     import media_runtime as runtime
-    return runtime, SimpleNamespace(**globals())
+    context = SimpleNamespace(**globals())
+    context.WORK = current_project()
+    projects, _ = project_module()
+    context.workspace_path = lambda relative: projects.resolve(context, relative, context.WORK)
+    return runtime, context
 
 
 def generate(prompt, width, height, seed, return_path=False, model='anima', seconds=2):
@@ -73,6 +88,11 @@ def generate(prompt, width, height, seed, return_path=False, model='anima', seco
 
 
 class Tools:
+    async def current_project(self) -> dict:
+        """Read the user-selected project folder. Call before file work; relative paths use this folder for all chats. Selecting a different folder is a user action in the desktop Project menu."""
+        module, context = project_module()
+        return module.info(context)
+
     async def training_guide(self) -> list:
         """Show LoRA preparation routes for Anima, Qwen Image 2.1, MiniMax H3 and Qwen3.8. Does not install, download or train."""
         _, context = media_runtime()
@@ -90,7 +110,7 @@ class Tools:
         def read():
             runtime, context = media_runtime()
             active = runtime.queues(context)
-            return {'models': runtime.models(context), 'queues': active, 'workspace': str(WORK)}
+            return {'models': runtime.models(context), 'queues': active, 'workspace': str(context.WORK)}
         return await asyncio.to_thread(read)
 
     async def create_qwen_image(self, prompt: str, width: int = 1024, height: int = 1024, seed: int = 42, __event_emitter__=None) -> str:
@@ -158,7 +178,7 @@ class Tools:
 
     async def open_workspace_image(self, path: str, __event_emitter__=None) -> str:
         """Open an existing PNG/JPEG/WebP image from the local workspace, display it in chat and inspect its actual content. Does not generate or edit images.
-        :param path: Relative image file path under C:/AI/LocalLLM/workspace.
+        :param path: Relative image file path inside the user-selected project folder.
         """
         p = workspace_path(path)
         if p.stat().st_size > 15000000:
@@ -175,7 +195,7 @@ class Tools:
         return image_url
 
     async def list_workspace(self, directory: str = '.') -> list:
-        """List files in a directory under C:/AI/LocalLLM/workspace. Paths are relative to that workspace."""
+        """List files in a directory inside the user-selected project folder. Paths are relative to the project returned by current_project."""
         p = workspace_path(directory)
         return [{'name': x.name, 'directory': x.is_dir()} for x in sorted(p.iterdir())][:150]
 
@@ -187,7 +207,7 @@ class Tools:
         return p.read_text(encoding='utf-8-sig')[:24000]
 
     async def write_workspace_file(self, path: str, content: str) -> dict:
-        """Create or edit a UTF-8 text file in C:/AI/LocalLLM/workspace. Existing text is backed up before replacement.
+        """Create or edit a UTF-8 text file in the user-selected project folder. Existing text is backed up before replacement.
         :param path: Relative file path in the workspace.
         :param content: Exact complete UTF-8 text to save.
         """
@@ -210,15 +230,15 @@ class Tools:
         """
         if not __event_call__:
             return {'executed': False, 'reason': 'Interactive confirmation is required.'}
+        project = current_project()
         approved = await __event_call__({'type': 'confirmation', 'data': {
             'title': 'PowerShellコマンドの実行',
-            'message': 'Windowsユーザー権限で実行します。作業フォルダはC:\\AI\\LocalLLM\\workspaceですが、操作範囲はその外にも及びます。\n\n' + command,
+            'message': 'Windowsユーザー権限で実行します。作業フォルダ: ' + str(project) + '（操作範囲はその外にも及びます）\n\n' + command,
         }})
         if approved is not True:
             return {'executed': False, 'reason': 'Cancelled by user.'}
         def run():
-            WORK.mkdir(parents=True, exist_ok=True)
-            with subprocess.Popen([PWSH, '-NoProfile', '-NonInteractive', '-Command', command], cwd=WORK,
+            with subprocess.Popen([PWSH, '-NoProfile', '-NonInteractive', '-Command', command], cwd=project,
                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8', errors='replace',
                                   creationflags=subprocess.CREATE_NO_WINDOW) as process:
                 try:

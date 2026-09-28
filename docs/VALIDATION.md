@@ -28,3 +28,10 @@ Public sources replace machine-specific tools and source paths with discovery an
 - Desktop preparation window: switch model and create a Qwen Image 2.1 preparation folder. MCP: enumerate 11 tools, read guides and prepare a Qwen3.8 folder. No training executed.
 - Offline tests cover geometry, unknown/busy server handling, lock release, preparation path validation, duplicate rejection and no subprocess execution.
 - No trainer quality, full fine-tuning, fresh public installation or other GPU claims are made.
+
+## Project selection update (2026-09-28)
+
+- Six offline regression tests pass: persistent selection/read/write/backup/reset, invalid paths and escaping Windows junctions, missing-folder refusal, media/training snapshot routing, command working-directory snapshot before approval, and queued job routing after a switch. Existing chat and media tests also pass.
+- Live MCP connection enumerated 13 tools and selected a Japanese-named fixture project, wrote/read a file and restored the prior selection. No inference or training was needed for this test.
+- Dedicated desktop updated; native directory dialog selected a Japanese-named fixture; toolbar and a fresh CLI process reported the same path. Reset to the default folder was checked. Open WebUI header and branding remain visible below the toolbar.
+- Selection applies to all chats. A complete conversational request can contain multiple tools: wait for it to finish before switching. Only already submitted jobs and individual approved commands are pinned; this release does not bind each chat to its own project.

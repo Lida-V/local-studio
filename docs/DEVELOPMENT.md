@@ -13,3 +13,8 @@
 - Open WebUI 0.11.4 video rendering needs one block HTML token: `<div><video>/api/v1/files/ID/content</video></div>`. Inline video tags can be split and displayed literally. Upload video with `process=false`, persist a `files` event, and include the block in the assistant message; test a reload.
 - A server launcher returning a PID does not mean its HTTP endpoint is ready. Poll readiness with a deadline before submitting work.
 - Coordinate all known ComfyUI queues before releasing models. Treat request timeouts as unknown, not idle.
+
+- Persist the selected project in application data, separately from disposable browser cache. Invalid/missing selections must fail rather than silently switch destinations.
+- Snapshot a project for every queued job and before command confirmation. A global selection change must not redirect an already accepted operation.
+- Resolve both the selected root and child path; reject traversal, absolute children, alternate data streams and escaping junctions. This boundary applies to file tools; approved PowerShell retains Windows user permissions.
+- Desktop folder selection uses the main-process native dialog. Check the IPC sender and main frame, expose no arbitrary path setter to the web page, and keep Open WebUI branding and its existing new-chat shortcut visible/available.

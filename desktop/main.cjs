@@ -20,15 +20,58 @@ let webSession;
 let trainingWindow;
 const trainingUrl = pathToFileURL(path.join(__dirname, 'training.html')).href;
 const trainingAssets = new Set(['training.html','training-ui.js'].map(name => pathToFileURL(path.join(__dirname, name)).href));
-function trainingCommand(args) {
+function studioCommand(args) {
   const source = process.env.LOCAL_STUDIO_SOURCE;
   if (!source) return Promise.reject(new Error('専用ランチャーからLocal Studioを起動してください。'));
   const python = path.join(root, 'apps/open-webui/.venv/Scripts/python.exe');
   return new Promise((resolve, reject) => execFile(python, ['-X','utf8',path.join(source,'scripts/Local-Studio.py'),...args], { windowsHide: true, timeout: 15000, maxBuffer: 1024 * 1024 }, (error, stdout) => {
-    if (error) return reject(new Error('準備処理に失敗しました。名前は英数字・ハイフン・下線で指定し、既存名を避けてください。'));
+    if (error) return reject(new Error('操作できませんでした。フォルダの存在・アクセス権、準備フォルダ名の重複を確認してください。'));
     try { resolve(JSON.parse(stdout)); } catch (e) { reject(e); }
   }));
 }
+const trainingCommand = studioCommand;
+let choosingProject = false;
+function checkProjectSender(event) {
+  if (!window || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame || !local(event.senderFrame.url)) throw new Error('Invalid project page');
+}
+async function refreshProject() {
+  try {
+    const value = await studioCommand(['project']);
+    if (window && !window.isDestroyed()) window.webContents.send('project:changed', value);
+    return value;
+  } catch (error) {
+    if (window && !window.isDestroyed()) window.webContents.send('project:changed', { error: error.message });
+    throw error;
+  }
+}
+async function chooseProject() {
+  if (choosingProject) return;
+  choosingProject = true;
+  try {
+    const current = await studioCommand(['project']).catch(() => ({}));
+    const result = await dialog.showOpenDialog(window, { title: '作業するプロジェクトフォルダを選択', buttonLabel: 'このフォルダで作業', defaultPath: current.path || path.join(root,'workspace'), properties: ['openDirectory','dontAddToRecent'] });
+    if (!result.canceled && result.filePaths.length === 1) {
+      await studioCommand(['project-select', result.filePaths[0]]);
+      if (trainingWindow) trainingWindow.reload();
+    }
+    return await refreshProject();
+  } finally { choosingProject = false; }
+}
+async function resetProject() {
+  await studioCommand(['project-reset']);
+  if (trainingWindow) trainingWindow.reload();
+  return refreshProject();
+}
+async function openProject() {
+  const current = await studioCommand(['project']);
+  const error = await shell.openPath(current.path);
+  if (error) throw new Error(error);
+}
+const menuAction = action => () => action().catch(error => dialog.showErrorBox('Local Studio', error.message));
+ipcMain.handle('project:info', event => { checkProjectSender(event); return studioCommand(['project']); });
+ipcMain.handle('project:choose', event => { checkProjectSender(event); return chooseProject(); });
+ipcMain.handle('project:reset', event => { checkProjectSender(event); return resetProject(); });
+ipcMain.handle('project:open', event => { checkProjectSender(event); return openProject(); });
 function checkTrainingSender(event) {
   if (!trainingWindow || event.sender !== trainingWindow.webContents || event.senderFrame.url !== trainingUrl) throw new Error('Invalid training page');
 }
@@ -40,7 +83,8 @@ ipcMain.handle('training:prepare', (event, model, name) => {
 });
 ipcMain.handle('training:open-folder', async event => {
   checkTrainingSender(event);
-  const folder = path.join(root,'workspace/training'); fs.mkdirSync(folder,{recursive:true});
+  const current = await studioCommand(['project']);
+  const folder = path.join(current.path,'training'); fs.mkdirSync(folder,{recursive:true});
   const error = await shell.openPath(folder); if (error) throw new Error(error);
 });
 function showTraining() {
@@ -78,6 +122,11 @@ else {
       return { action: 'deny' };
     });
     Menu.setApplicationMenu(Menu.buildFromTemplate([
+      { label: 'プロジェクト', submenu: [
+        { label: 'フォルダを選択…', accelerator: 'CmdOrCtrl+Alt+O', click: menuAction(chooseProject) },
+        { label: '作業フォルダを開く', click: menuAction(openProject) },
+        { type: 'separator' }, { label: '標準workspaceへ戻す', click: menuAction(resetProject) }
+      ] },
       { label: 'チャット', submenu: [
         { label: '新しいセッション', accelerator: 'CmdOrCtrl+N', click: () => window.loadURL(origin) },
         { type: 'separator' }, { label: '終了', role: 'quit' }
@@ -88,6 +137,8 @@ else {
     ]));
     window.once('ready-to-show', () => window.show());
     await window.loadURL(origin);
+    window.on('focus', () => refreshProject().catch(() => {}));
+    fs.watchFile(path.join(root,'data/project-workspace.json'), { interval: 2000, persistent: false }, () => refreshProject().catch(() => {}));
     fs.writeFileSync(path.join(root, 'runtime/desktop.json'), JSON.stringify({ pid: process.pid, version: process.versions.electron, cache: ephemeral, persistentSession: webSession.isPersistent(), started: new Date().toISOString() }));
   }).catch(error => { dialog.showErrorBox('Local Studio', error.message); app.exit(1); });
   app.on('window-all-closed', () => app.quit());

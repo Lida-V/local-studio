@@ -38,7 +38,7 @@ class Routes(unittest.TestCase):
             with media.gpu_lease(studio): pass
 
     def test_preparation_has_no_execution_and_rejects_reuse(self):
-        with tempfile.TemporaryDirectory() as temp, patch.object(studio,'WORK',Path(temp)), patch.object(studio.subprocess,'run') as run:
+        with tempfile.TemporaryDirectory() as temp, patch.object(studio,'WORK',Path(temp)), patch.object(studio,'ROOT',Path(temp)), patch.object(studio.subprocess,'run') as run:
             for model in training_routes.PROFILES:
                 result=training_routes.prepare(studio,model,model.replace('.', '-'))
                 self.assertFalse(result['training_started'])

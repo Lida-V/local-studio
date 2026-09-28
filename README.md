@@ -4,13 +4,14 @@ Windows用のローカル制作チャット。Open WebUIを専用Electronウィ�
 
 ## 機能
 
+- プロジェクトフォルダ選択・現在の作業先表示・再起動後の保持
 - 日本語のチャットと横サイドバーによるセッション切替
 - 会話履歴・画像・資料添付の保存
 - メモリ内ブラウザセッションと、終了時の専用キャッシュ削除
 - ローカルQwenへの文章／画像入力
 - ComfyUIとのGPUメモリ交代によるAnima／Qwen Image 2.1画像・MiniMax H3動画生成
 - 4モデルのLoRA準備画面と素材フォルダ作成（学習・モデル取得は開始しません）
-- workspace内のテキスト編集と上書き前バックアップ
+- 選択したプロジェクト内のテキスト編集と上書き前バックアップ
 - 画面で承認したPowerShellコマンドの実行
 - MCPから長い処理を受け付け、再接続後に結果を取得
 
@@ -55,6 +56,8 @@ Setupで生成される `.codex/config.toml` と `.mcp.json` をこのプロジ�
 
 | ツール | 用途 |
 | --- | --- |
+| `current_project` | 現在の作業フォルダを確認 |
+| `select_project` | ユーザー指定の既存フォルダを選択 |
 | `studio_status` | 接続・ワーカー状態 |
 | `ask_qwen` | 文章／workspace画像をQwenへ渡す |
 | `generate_anima` | Animaで新規画像を生成 |
@@ -75,6 +78,7 @@ Setupで生成される `.codex/config.toml` と `.mcp.json` をこのプロジ�
 python scripts/Verify-Source.py
 python scripts/Test-ChatTools.py
 python scripts/Test-MediaRoutes.py
+python scripts/Test-ProjectWorkspace.py
 node --check desktop/main.cjs
 ```
 
