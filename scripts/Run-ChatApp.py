@@ -44,5 +44,9 @@ p = psutil.Process()
     'pid': p.pid, 'created': p.create_time(), 'exe': p.exe(),
     'script': str(Path(__file__).resolve()), 'url': 'http://127.0.0.1:18081',
 }), encoding='utf-8')
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
+os.environ['FROM_INIT_PY'] = 'true'
+from webui_runtime import install
+install()
 from open_webui import serve
 serve(host='127.0.0.1', port=18081)

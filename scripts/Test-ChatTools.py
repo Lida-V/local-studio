@@ -34,7 +34,7 @@ async def main():
                 pass
         await tool.write_workspace_file('drafts/sample.md', 'old 日本語')
         await tool.write_workspace_file('drafts/sample.md', 'new 日本語')
-        assert await tool.read_workspace_file('drafts/sample.md') == 'new 日本語'
+        assert (await tool.read_workspace_file('drafts/sample.md'))['content'] == 'new 日本語'
         assert list((module.ROOT / 'data/file-backups').glob('*'))[0].read_text(encoding='utf-8') == 'old 日本語'
         assert not (await tool.run_powershell("Write-Output 'SHOULD_NOT_RUN'"))['executed']
         async def deny(event):

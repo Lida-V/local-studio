@@ -12,6 +12,9 @@ Windows用のローカル制作チャット。Open WebUIを専用Electronウィ�
 - ComfyUIとのGPUメモリ交代によるAnima／Qwen Image 2.1画像・MiniMax H3動画生成
 - 4モデルのLoRA準備画面と素材フォルダ作成（学習・モデル取得は開始しません）
 - 選択したプロジェクト内のテキスト編集と上書き前バックアップ
+- ファイル名・本文検索、ページ単位の一覧、UTF-8／UTF-16／CP932テキストの行指定読取
+- 実行状況・最後の更新からの時間・承認待ち・停止状態の常時表示
+- 待機中の追加指示を「今すぐ送信」で1回だけ割り込み送信
 - 画面で承認したPowerShellコマンドの実行
 - MCPから長い処理を受け付け、再接続後に結果を取得
 
@@ -66,8 +69,9 @@ Setupで生成される `.codex/config.toml` と `.mcp.json` をこのプロジ�
 | `training_guide` | 4モデルの学習準備案内 |
 | `prepare_training` | 素材・設定例のフォルダのみ作成 |
 | `task_result` | job_idで結果を取得 |
-| `list_workspace` | ファイル一覧 |
-| `read_workspace_file` | UTF-8ファイルを読む |
+| `list_workspace` | ページ単位のファイル一覧 |
+| `search_workspace` | ファイル名／本文を検索 |
+| `read_workspace_file` | 行指定でテキストを読む（UTF-8／UTF-16／CP932） |
 | `write_workspace_file` | 保存・バックアップ付き編集 |
 
 `ask_qwen` と3つの生成ツール はjob_idを返します。実処理は独立ワーカーで進むため、MCP接続を閉じても継続します。MCPの単発処理はデスクトップのチャット一覧へ自動追加しません。
@@ -79,6 +83,8 @@ python scripts/Verify-Source.py
 python scripts/Test-ChatTools.py
 python scripts/Test-MediaRoutes.py
 python scripts/Test-ProjectWorkspace.py
+python scripts/Test-AgentReliability.py
+node scripts/Test-QueueInsertion.cjs
 node --check desktop/main.cjs
 ```
 

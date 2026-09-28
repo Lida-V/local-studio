@@ -31,7 +31,7 @@ class Projects(unittest.TestCase):
         tool = studio.Tools()
         asyncio.run(tool.write_workspace_file('drafts/test.txt', 'before'))
         asyncio.run(tool.write_workspace_file('drafts/test.txt', 'after 日本語'))
-        self.assertEqual(asyncio.run(tool.read_workspace_file('drafts/test.txt')), 'after 日本語')
+        self.assertEqual(asyncio.run(tool.read_workspace_file('drafts/test.txt'))['content'], 'after 日本語')
         self.assertFalse((studio.WORK / 'drafts/test.txt').exists())
         self.assertEqual(next((self.root / 'data/file-backups').iterdir()).read_text(), 'before')
         saved = json.loads((self.root / 'data/project-workspace.json').read_text(encoding='utf-8'))

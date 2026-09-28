@@ -13,3 +13,5 @@ The MIT license in this repository covers the original launcher, integration and
 The Python and npm lockfiles identify additional dependencies; their own license files apply. No universal claim about all generated content or all model uses is made by this repository.
 
 Additional media routes reference Qwen Image 2.1 and MiniMax H3 plus their separately supplied quantizations, encoders, VAEs and custom nodes. No weights are bundled or downloaded by these routes. LoRA preparation references Anima Standalone Trainer, DiffSynth-Studio, Musubi Tuner and Unsloth by documentation link only; no trainer installation is performed. Check each selected upstream distribution and model card before use.
+
+The source-match strings in `tools/webui_queue_patch.py` derive from the pinned Open WebUI 0.11.4 frontend and remain subject to its license. The runtime serves this compatibility change without changing upstream branding or modifying the installed distribution.

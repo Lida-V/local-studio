@@ -232,6 +232,7 @@ def serve():
 
     mcp.tool(annotations=read)(task_result)
     mcp.tool(annotations=read)(studio.Tools().list_workspace)
+    mcp.tool(annotations=read)(studio.Tools().search_workspace)
     mcp.tool(annotations=read)(studio.Tools().read_workspace_file)
     mcp.tool(annotations=write)(studio.Tools().write_workspace_file)
     mcp.run(transport='stdio')

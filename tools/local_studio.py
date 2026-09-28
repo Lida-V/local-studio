@@ -2,7 +2,7 @@
 title: Local Studio
 author: Local Studio contributors
 description: Anima / Qwen Image 2.1 / MiniMax H3, workspace files and confirmed PowerShell commands.
-version: 1.2.0
+version: 1.3.0
 required_open_webui_version: 0.11.4
 """
 import asyncio
@@ -87,6 +87,12 @@ def generate(prompt, width, height, seed, return_path=False, model='anima', seco
     return runtime.generate(context, prompt, width, height, seed, return_path, model, seconds)
 
 
+async def background(function, *args, **kwargs):
+    project_module()
+    from webui_runtime import background_operation
+    return await background_operation(function, *args, **kwargs)
+
+
 class Tools:
     async def current_project(self) -> dict:
         """Read the user-selected project folder. Call before file work; relative paths use this folder for all chats. Selecting a different folder is a user action in the desktop Project menu."""
@@ -111,11 +117,11 @@ class Tools:
             runtime, context = media_runtime()
             active = runtime.queues(context)
             return {'models': runtime.models(context), 'queues': active, 'workspace': str(context.WORK)}
-        return await asyncio.to_thread(read)
+        return await background(read)
 
     async def create_qwen_image(self, prompt: str, width: int = 1024, height: int = 1024, seed: int = 42, __event_emitter__=None) -> str:
         """Create a NEW image with Qwen Image 2.1 (not Qwen3.8). Does not edit an existing image. Dimensions 512–1536 by 64, <=1.5 MP. Qwen chat resumes after generation."""
-        data = await asyncio.to_thread(generate, prompt, width, height, seed, False, 'qwen-image-2.1')
+        data = await background(generate, prompt, width, height, seed, False, 'qwen-image-2.1')
         image_url = 'data:image/png;base64,' + base64.b64encode(data).decode()
         if __event_emitter__:
             await __event_emitter__({'type': 'files', 'data': {'files': [{'type': 'image', 'name': 'Qwen-Image-2.1.png', 'url': image_url}]}})
@@ -126,7 +132,7 @@ class Tools:
         if __event_emitter__:
             await __event_emitter__({'type': 'status', 'data': {'description': 'MiniMax H3で音声付き動画を生成中', 'done': False}})
         try:
-            path = await asyncio.to_thread(generate, prompt, width, height, seed, True, 'minimax-h3', seconds)
+            path = await background(generate, prompt, width, height, seed, True, 'minimax-h3', seconds)
             def upload():
                 import httpx
                 base = 'http://127.0.0.1:18081'
@@ -137,7 +143,7 @@ class Tools:
                         response = client.post(base + '/api/v1/files/?process=false', headers={'Authorization': 'Bearer ' + login.json()['token']}, files={'file': ('MiniMax-H3.mp4', stream, 'video/mp4')})
                     response.raise_for_status()
                     return response.json()
-            file = await asyncio.to_thread(upload)
+            file = await background(upload)
             url = '/api/v1/files/' + file['id'] + '/content'
             # A block HTML token is required by Open WebUI 0.11.4's video renderer.
             embed = '<div><video>' + url + '</video></div>'
@@ -165,7 +171,7 @@ class Tools:
         if __event_emitter__:
             await __event_emitter__({'type': 'status', 'data': {'description': 'ComfyUIで画像生成中。Qwenは生成後に復帰します。', 'done': False}})
         try:
-            data = await asyncio.to_thread(generate, prompt, width, height, seed)
+            data = await background(generate, prompt, width, height, seed)
         finally:
             if __event_emitter__:
                 await __event_emitter__({'type': 'status', 'data': {'description': '画像生成処理を終了しました。', 'done': True}})
@@ -194,17 +200,26 @@ class Tools:
             await __event_emitter__({'type': 'files', 'data': {'files': [{'type': 'image', 'name': p.name, 'url': image_url}]}})
         return image_url
 
-    async def list_workspace(self, directory: str = '.') -> list:
-        """List files in a directory inside the user-selected project folder. Paths are relative to the project returned by current_project."""
-        p = workspace_path(directory)
-        return [{'name': x.name, 'directory': x.is_dir()} for x in sorted(p.iterdir())][:150]
+    async def list_workspace(self, directory: str = '.', offset: int = 0) -> dict:
+        """List a project directory, 60 entries per page. Continue with next_offset. Call current_project first."""
+        project_module()
+        import workspace_files
+        from types import SimpleNamespace
+        return await background(workspace_files.inspect, SimpleNamespace(**globals()), workspace_files.listing, directory, offset=offset)
 
-    async def read_workspace_file(self, path: str) -> str:
-        """Read a UTF-8 text file under the local workspace. Maximum 24000 characters."""
-        p = workspace_path(path)
-        if p.stat().st_size > 100000:
-            raise ValueError('File too large; use a smaller excerpt.')
-        return p.read_text(encoding='utf-8-sig')[:24000]
+    async def search_workspace(self, query: str, directory: str = '.', content: bool = False, offset: int = 0) -> dict:
+        """Find project filenames (substring or glob). content=true searches literal text and returns first matching line per file. Skips caches/links/binary files; continue partial searches with next_offset."""
+        project_module()
+        import workspace_files
+        from types import SimpleNamespace
+        return await background(workspace_files.inspect, SimpleNamespace(**globals()), workspace_files.search, directory, query=query, content=content, offset=offset)
+
+    async def read_workspace_file(self, path: str, start_line: int = 1, max_lines: int = 60, start_column: int = 0) -> dict:
+        """Read a text excerpt (UTF-8/UTF-16/CP932), max 2400 characters. For truncated output continue with next_line AND next_column. Supports files up to 16 MB. Paths relative to current_project."""
+        project_module()
+        import workspace_files
+        from types import SimpleNamespace
+        return await background(workspace_files.inspect, SimpleNamespace(**globals()), workspace_files.read, path, start_line=start_line, max_lines=max_lines, start_column=start_column)
 
     async def write_workspace_file(self, path: str, content: str) -> dict:
         """Create or edit a UTF-8 text file in the user-selected project folder. Existing text is backed up before replacement.
@@ -231,12 +246,15 @@ class Tools:
         if not __event_call__:
             return {'executed': False, 'reason': 'Interactive confirmation is required.'}
         project = current_project()
+        from webui_runtime import phase
+        phase('approval', 'run_powershell')
         approved = await __event_call__({'type': 'confirmation', 'data': {
             'title': 'PowerShellコマンドの実行',
             'message': 'Windowsユーザー権限で実行します。作業フォルダ: ' + str(project) + '（操作範囲はその外にも及びます）\n\n' + command,
         }})
         if approved is not True:
             return {'executed': False, 'reason': 'Cancelled by user.'}
+        phase('tool', 'run_powershell')
         def run():
             with subprocess.Popen([PWSH, '-NoProfile', '-NonInteractive', '-Command', command], cwd=project,
                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8', errors='replace',
@@ -253,4 +271,4 @@ class Tools:
                     out, err = process.communicate()
                     return {'executed': True, 'timed_out': True, 'stdout': out[-12000:], 'stderr': err[-4000:]}
                 return {'executed': True, 'exit_code': process.returncode, 'stdout': out[-12000:], 'stderr': err[-4000:]}
-        return await asyncio.to_thread(run)
+        return await background(run)

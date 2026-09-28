@@ -55,8 +55,11 @@ def select(studio, path=None):
 def resolve(studio, relative, root=None):
     root = current(studio) if root is None else validate(root)
     relative = str(relative)
+    if relative.startswith(('\\\\', '//')):
+        raise ValueError('Network paths are not project file paths.')
     p = (root / relative).resolve()
-    if Path(relative).is_absolute() or ':' in relative or not p.is_relative_to(root):
+    suffix = relative[len(Path(relative).drive):]
+    if ':' in suffix or not p.is_relative_to(root) or (Path(relative).root and not Path(relative).drive) or (Path(relative).drive and not Path(relative).is_absolute()):
         raise ValueError('Use a relative path inside the selected project; outside paths and links are rejected.')
     return p
 

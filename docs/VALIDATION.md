@@ -35,3 +35,12 @@ Public sources replace machine-specific tools and source paths with discovery an
 - Live MCP connection enumerated 13 tools and selected a Japanese-named fixture project, wrote/read a file and restored the prior selection. No inference or training was needed for this test.
 - Dedicated desktop updated; native directory dialog selected a Japanese-named fixture; toolbar and a fresh CLI process reported the same path. Reset to the default folder was checked. Open WebUI header and branding remain visible below the toolbar.
 - Selection applies to all chats. A complete conversational request can contain multiple tools: wait for it to finish before switching. Only already submitted jobs and individual approved commands are pinned; this release does not bind each chat to its own project.
+
+## File investigation, activity and insertion update (2026-09-28)
+
+- Eight new Python regressions and four queue JavaScript cases pass, including large Japanese text, long-line continuation, CP932/UTF-16, paged search/list, error guidance, cancellation of real worker threads, preservation of user instructions, double-click, stop failure and navigation while stopping. Existing 17 checks pass.
+- Actual desktop: read line 6000 from a 195208-byte Japanese fixture and a CP932 fixture; both expected phrases matched and the status returned to completed.
+- Actual desktop: during a long numbered response, one click on the queued message's send-now button stopped and resumed with the new instruction. The saved chat contains exactly one inserted user message and a completed response with the expected exact phrase. No second insertion was used.
+- Actual MCP: 14 tools, filename search and CP932 reading verified. Activity API requires authentication (anonymous 401); served compatibility JS has no-store and passes module syntax validation.
+- read_workspace_file now returns a structured object with content and continuation positions; list_workspace returns entries and next_offset. Consumers of the previous string/list return types must update.
+- The activity bar describes desktop chat tasks. MCP/CLI jobs remain independently tracked through task_result. No inference benchmark, all-model cancellation guarantee, general PDF/Office parsing or clean-machine installation claim is made.
