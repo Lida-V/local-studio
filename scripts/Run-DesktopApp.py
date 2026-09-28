@@ -8,6 +8,7 @@ import stat
 import subprocess
 import sys
 import time
+import urllib.request
 
 SUPPORT = Path(__file__).resolve().parents[1]
 CONFIG = json.loads((SUPPORT / 'config/support-config.json').read_text(encoding='utf-8-sig'))
@@ -34,6 +35,19 @@ def clear_owned_cache():
                     raise RuntimeError('Cache path escapes its root')
         shutil.rmtree(CACHE)
 
+def ensure_backend(log):
+    result = subprocess.run([PWSH, '-NoProfile', '-File', str(SUPPORT / 'scripts/Start-ChatApp.ps1')], stdout=log, stderr=log, creationflags=subprocess.CREATE_NO_WINDOW)
+    if result.returncode:
+        raise RuntimeError('Backend startup failed; see logs/desktop-launch.log')
+    # A successful launcher exit alone does not prove the chat page is ready.
+    try:
+        with urllib.request.urlopen('http://127.0.0.1:18081/health', timeout=5) as response:
+            if json.load(response).get('status') is not True:
+                raise ValueError('Unhealthy backend')
+    except Exception as error:
+        raise RuntimeError('画面サーバーに接続できません。logs/desktop-launch.logを確認してください。') from error
+
+
 def main():
     (ROOT / 'runtime').mkdir(exist_ok=True)
     env = os.environ.copy()
@@ -44,14 +58,15 @@ def main():
         try:
             msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
         except OSError:
-            # Electron focuses its existing instance; never clean a live profile.
+            # Restore a stopped backend before focusing the existing window.
+            # Never clean its live profile or truncate the first launcher's log.
+            with (ROOT / 'logs/desktop-launch.log').open('a', encoding='utf-8') as log:
+                ensure_backend(log)
             subprocess.Popen([str(EXE), str(APP)], env=env, creationflags=subprocess.CREATE_NO_WINDOW)
             return
         clear_owned_cache()
         with (ROOT / 'logs/desktop-launch.log').open('w', encoding='utf-8') as log:
-            result = subprocess.run([PWSH, '-NoProfile', '-File', str(SUPPORT / 'scripts/Start-ChatApp.ps1')], stdout=log, stderr=log, creationflags=subprocess.CREATE_NO_WINDOW)
-            if result.returncode:
-                raise RuntimeError('Backend startup failed; see logs/desktop-launch.log')
+            ensure_backend(log)
             try:
                 child = subprocess.Popen([str(EXE), str(APP)], env=env, stdout=log, stderr=log, creationflags=subprocess.CREATE_NO_WINDOW)
                 child.wait()
