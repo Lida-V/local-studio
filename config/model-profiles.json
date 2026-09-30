@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "profiles": [
+    {
+      "id": "qwen-standard",
+      "label": "Qwen3.8-27B 通常版",
+      "model": {
+        "path": "models/Qwen3.8-27B/Qwen3.8-27B-UD-Q4_K_M.gguf",
+        "size": 16464440224,
+        "sha256": "322e194ff79741c7baa497c240f677f54b201b0efab44ca8e50f122b39123482"
+      },
+      "mmproj": {
+        "path": "models/Qwen3.8-27B/mmproj-F16.gguf",
+        "size": 927607488,
+        "sha256": "cbb841a9ee0636b2ec172f5bb8df2ea8dfeb01e90fe7c6126581d662a0b4e43e"
+      },
+      "source": {
+        "repo": "unsloth/Qwen3.8-27B-GGUF",
+        "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+        "url": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF"
+      },
+      "license": "Apache-2.0"
+    },
+    {
+      "id": "huihui-qwen",
+      "label": "Huihui-Qwen3.8-27B UD-DW 4bit",
+      "model": {
+        "path": "models/Huihui-Qwen3.8-27B/Huihui-Qwen3.8-27B-abliterated-UD-DW-Q4_K_M.gguf",
+        "size": 16551316384,
+        "sha256": "0c7cfe3060493485bb9a6a51195897b0c1d347a49929206adb9a52170183ea03"
+      },
+      "mmproj": {
+        "path": "models/Qwen3.8-27B/mmproj-F16.gguf",
+        "size": 927607488,
+        "sha256": "cbb841a9ee0636b2ec172f5bb8df2ea8dfeb01e90fe7c6126581d662a0b4e43e"
+      },
+      "source": {
+        "repo": "huihui-ai/Huihui-Qwen3.8-27B-abliterated-GGUF",
+        "revision": "3f101cd22b7999228bbd5d79a33975414eb9758b",
+        "url": "https://huggingface.co/huihui-ai/Huihui-Qwen3.8-27B-abliterated-GGUF"
+      },
+      "license": "Apache-2.0"
+    }
+  ]
+}

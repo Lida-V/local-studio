@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "checkedOn": "2026-09-30",
+  "sourceRepo": "huihui-ai/Huihui-Qwen3.8-27B-abliterated-GGUF",
+  "revision": "3f101cd22b7999228bbd5d79a33975414eb9758b",
+  "license": "Apache-2.0",
+  "files": [
+    {
+      "name": "Huihui-Qwen3.8-27B-abliterated-UD-DW-Q4_K_M.gguf",
+      "folder": "models/Huihui-Qwen3.8-27B",
+      "size": 16551316384,
+      "sha256": "0c7cfe3060493485bb9a6a51195897b0c1d347a49929206adb9a52170183ea03",
+      "url": "https://huggingface.co/huihui-ai/Huihui-Qwen3.8-27B-abliterated-GGUF/resolve/3f101cd22b7999228bbd5d79a33975414eb9758b/Huihui-Qwen3.8-27B-abliterated-UD-DW-Q4_K_M.gguf"
+    }
+  ]
+}

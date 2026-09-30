@@ -247,6 +247,8 @@ def main():
     sub.add_parser('project-reset')
     sub.add_parser('project-select').add_argument('path')
     sub.add_parser('training-guide')
+    sub.add_parser('model-profiles')
+    sub.add_parser('model-select').add_argument('profile')
     prompt_guide = sub.add_parser('prompt-guide')
     prompt_guide.add_argument('--topic', default='overview')
     prompt_guide.add_argument('--offset', type=int, default=0)
@@ -270,6 +272,13 @@ def main():
         p.add_argument('--seed', type=int, default=42)
         p.add_argument('--wait', action='store_true')
     args = parser.parse_args()
+    if args.command == 'model-profiles':
+        import model_profiles
+        print(json.dumps(model_profiles.profiles(SUPPORT, CONFIG), ensure_ascii=False, indent=2))
+        return
+    if args.command == 'model-select':
+        subprocess.run([sys.executable, '-B', '-X', 'utf8', str(SUPPORT / 'scripts/Switch-Model.py'), args.profile], check=True)
+        return
     if args.command == 'prompt-guide':
         result = asyncio.run(studio.Tools().qwen_image21_prompt_guide(args.topic, args.offset))
         print(json.dumps(result, ensure_ascii=False, indent=2))

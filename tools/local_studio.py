@@ -27,6 +27,17 @@ PWSH = shutil.which('pwsh') or 'pwsh'
 COMFY = 'http://127.0.0.1:8188'
 GENERATION_LOCK = threading.Lock()
 
+# Open WebUI imports this reviewed module when updating the installed toolkit.
+# Gate new chat admissions before a switch, without interrupting an existing turn.
+import sys
+if 'open_webui.main' in sys.modules:
+    if str(SUPPORT / 'tools') not in sys.path:
+        sys.path.insert(0, str(SUPPORT / 'tools'))
+    import model_maintenance
+    import importlib
+    importlib.reload(model_maintenance)
+    model_maintenance.install(sys.modules['open_webui.main'].app, ROOT)
+
 
 def api(url, payload=None, timeout=15):
     data = None if payload is None else json.dumps(payload).encode()

@@ -9,6 +9,7 @@ Windows用のローカル制作チャット。Open WebUIを専用Electronウィ�
 - 会話履歴・画像・資料添付の保存
 - メモリ内ブラウザセッションと、終了時の専用キャッシュ削除
 - ローカルQwenへの文章／画像入力
+- 通常Qwen／追加したHuihui Qwenの切替と、作業中の切替防止
 - ComfyUIとのGPUメモリ交代によるAnima／Qwen Image 2.1画像・MiniMax H3動画生成
 - 4モデルのLoRA準備画面と素材フォルダ作成（学習・モデル取得は開始しません）
 - 選択したプロジェクト内のテキスト編集と上書き前バックアップ
@@ -46,6 +47,21 @@ pwsh -File scripts/Setup.ps1 -Python 'C:/path/to/Python311/python.exe' -Install
 6. `C:\AI\LocalLLM\Local Studio.lnk` を開きます。
 
 既存のLocalLLM環境がある場合、Setupは上書きを拒否します。元の設定・DBをバックアップし、個別スクリプトと変更内容を確認して移行してください。初期公開版のソース検査・境界テストは実施済みですが、公開用Setupを未使用PCで一括実行する検証は未実施です。
+
+## Huihui会話モデル（任意）
+
+既存の通常Qwenを保持して、配布者のUD-DW-Q4_K_M版を追加できます。約16.6GBの追加領域と取得時の5GiB余裕が必要です。設定済みのソースフォルダで実行します。
+
+```powershell
+$studioPython = (Get-Content -Raw -Encoding utf8 config/support-config.json | ConvertFrom-Json).chatApp.python
+& $studioPython -B -X utf8 scripts/Install-Huihui.py
+pwsh -File scripts/Deploy-ModelEntrypoints.ps1
+pwsh -File scripts/Start-ChatApp.ps1
+& $studioPython -B -X utf8 scripts/Deploy-PromptSkill.py
+& $studioPython -B -X utf8 scripts/Local-Studio.py model-select huihui-qwen
+```
+
+通常版へ戻すには `model-select qwen-standard` を使います。拒否の低減や創作品質は保証されません。これは会話・画像理解モデルの切替で、ComfyUIのQwen Image 2.1とは別です。プロファイルの意味、ダブルクリックの入口、固定配布元と復旧手順は [モデル選択ガイド](docs/model-profiles.md) を参照してください。
 
 ## ComfyUI（任意）
 
@@ -85,6 +101,10 @@ python scripts/Test-ChatTools.py
 python scripts/Test-MediaRoutes.py
 python scripts/Test-ProjectWorkspace.py
 python scripts/Test-AgentReliability.py
+python scripts/Test-ModelProfiles.py
+python scripts/Test-ModelSwitch.py
+python scripts/Test-ModelMaintenance.py
+python scripts/Test-RangeDownload.py
 node scripts/Test-QueueInsertion.cjs
 node --check desktop/main.cjs
 ```

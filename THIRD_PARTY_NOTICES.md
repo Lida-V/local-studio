@@ -8,6 +8,7 @@ The MIT license in this repository covers the original launcher, integration and
 - [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk): 1.27.2, [MIT license](https://github.com/modelcontextprotocol/python-sdk/blob/main/LICENSE).
 - [ComfyUI](https://github.com/Comfy-Org/ComfyUI): external, separately installed. Its source, custom nodes and models retain their respective licenses.
 - [Qwen quantization](https://huggingface.co/unsloth/Qwen3.8-27B-GGUF): external model. Consult the model card and upstream base model conditions. Download revision, filenames and SHA256 values are pinned in `config/download-manifest.json`.
+- [Huihui Qwen GGUF](https://huggingface.co/huihui-ai/Huihui-Qwen3.8-27B-abliterated-GGUF): optional external model, Apache-2.0 metadata. The UD-DW-Q4_K_M artifact is pinned in `config/huihui-download-manifest.json`. Installation retains the reviewed upstream LICENSE; no weights are redistributed here. Read the publisher's model card for the specific variant and limitations.
 - Anima and its text encoder/VAE are not downloaded by this project. Obtain them separately and check the corresponding model cards before use.
 
 The Python and npm lockfiles identify additional dependencies; their own license files apply. No universal claim about all generated content or all model uses is made by this repository.

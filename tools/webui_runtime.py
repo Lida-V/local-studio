@@ -88,6 +88,8 @@ def install():
     from fastapi import Depends
     from starlette.responses import JSONResponse, Response, StreamingResponse
     import open_webui.main as main
+    import model_maintenance
+    model_maintenance.install(main.app, Path('C:/AI/LocalLLM'))
     import open_webui.utils.middleware as middleware
     import open_webui.utils.context_compaction as compaction
     from open_webui.utils.auth import get_verified_user
