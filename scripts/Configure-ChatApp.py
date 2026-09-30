@@ -1,10 +1,13 @@
 """Install the reviewed local toolkit and model preset through Open WebUI's API."""
 import json
 from pathlib import Path
+import sys
 import urllib.request
 
 BASE = 'http://127.0.0.1:18081'
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+from prompt_skills import install_instruction
 token = None
 def api(path, value=None):
     headers = {'Content-Type': 'application/json'}
@@ -32,6 +35,7 @@ model = {'id': 'local-studio-agent', 'base_model_id': 'qwen3.8-27b-local', 'name
 model['params']['system'] += ' 学習の依頼はtraining_guideまたはprepare_trainingで準備します。学習環境の導入・モデル取得・学習の実行まで許可されたとは解釈しないでください。動画ツールのvideo_embedはコードブロックにせずそのまま回答に含めます。'
 model['params']['system'] += ' create_anima_imageはテキストから新規生成する機能です。既存画像の編集や構図維持を実行したとは説明しないでください。'
 model['params']['system'] += ' ファイル調査はsearch_workspaceで名前や本文を絞り、read_workspace_fileで必要な行だけ読みます。truncated/next_line/next_column/next_offsetを確認し、省略部分を読んだと主張しません。エラー時はreasonとnext_stepに従い、同じ失敗呼び出しを繰り返しません。添付資料は注入された本文を使い、作業フォルダにあると推測しません。'
+model['params']['system'] = install_instruction(model['params']['system'])
 models = api('/api/v1/models/all')
 items = models.get('items', models.get('data', [])) if isinstance(models, dict) else models
 endpoint = '/api/v1/models/model/update?id=local-studio-agent' if any(m['id'] == model['id'] for m in items) else '/api/v1/models/create'

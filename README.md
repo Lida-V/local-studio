@@ -65,6 +65,7 @@ Setupで生成される `.codex/config.toml` と `.mcp.json` をこのプロジ�
 | `ask_qwen` | 文章／workspace画像をQwenへ渡す |
 | `generate_anima` | Animaで新規画像を生成 |
 | `generate_qwen_image` | Qwen Image 2.1で新規画像を生成 |
+| `qwen_image21_prompt_guide` | Qwen Image 2.1のプロンプト設計を用途別・小分けで参照 |
 | `generate_minimax_video` | MiniMax H3で短い音声付き動画を生成 |
 | `training_guide` | 4モデルの学習準備案内 |
 | `prepare_training` | 素材・設定例のフォルダのみ作成 |

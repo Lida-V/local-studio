@@ -1,0 +1,7 @@
+# Local Studioでの実行範囲
+
+この公開版のprompt guideは設計資料を読むだけです。PE実行やモデル取得は行いません。
+create_qwen_image / generate_qwen_image はテキストからの新規生成のみ。参照画像入力や既存画像編集を実行したとは説明しないでください。
+参照/編集を実行する場合は、その環境のworkflow、画像入力ノード、画像の実入力順、寸法を確認してから、ユーザーが依頼した処理を行います。画像をチャットで開くことはComfyの条件入力ではありません。
+ratio/width/heightはノードに明示的に適用し、negativeはworkflowに合わせます。生成後は実画像を検品し、文字は原稿照合、透過はAlpha検査を行います。
+使用するComfyUIの接続設定はconfig/media-models.json、テキスト新規生成workflowはconfig/qwen-image21-workflow.jsonです。

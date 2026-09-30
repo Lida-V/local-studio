@@ -2,7 +2,7 @@
 title: Local Studio
 author: Local Studio contributors
 description: Anima / Qwen Image 2.1 / MiniMax H3, workspace files and confirmed PowerShell commands.
-version: 1.3.0
+version: 1.4.0
 required_open_webui_version: 0.11.4
 """
 import asyncio
@@ -94,6 +94,19 @@ async def background(function, *args, **kwargs):
 
 
 class Tools:
+    async def qwen_image21_prompt_guide(self, topic: str = 'overview', offset: int = 0) -> dict:
+        """Read Qwen Image 2.1 prompting guidance, <=1800 characters/page. Start with overview; then only needed topic: core/scene_style/local_edit/transparent/japanese_cover/text_dense_infographic/multi_reference/t2i/local_runtime/sources. Continue truncated pages with next_offset. Independent of project folder. Drafting only, no generation or download."""
+        import sys
+        if str(SUPPORT / 'tools') not in sys.path:
+            sys.path.insert(0, str(SUPPORT / 'tools'))
+        import prompt_skills
+        helper = Path(prompt_skills.__file__)
+        stat = helper.stat()
+        if getattr(prompt_skills, 'LOADED_SIGNATURE', None) != (stat.st_mtime_ns, stat.st_size):
+            import importlib
+            importlib.reload(prompt_skills)
+        return prompt_skills.guide(topic, offset, SUPPORT / 'skills/qwen-image21-prompting')
+
     async def current_project(self) -> dict:
         """Read the user-selected project folder. Call before file work; relative paths use this folder for all chats. Selecting a different folder is a user action in the desktop Project menu."""
         module, context = project_module()

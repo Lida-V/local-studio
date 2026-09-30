@@ -224,6 +224,7 @@ def serve():
         return training_routes.prepare(studio.media_runtime()[1], model, name)
 
     mcp.tool(annotations=read)(studio.Tools().current_project)
+    mcp.tool(annotations=read)(studio.Tools().qwen_image21_prompt_guide)
 
     @mcp.tool(annotations=write)
     def select_project(path: str) -> dict:
@@ -246,6 +247,9 @@ def main():
     sub.add_parser('project-reset')
     sub.add_parser('project-select').add_argument('path')
     sub.add_parser('training-guide')
+    prompt_guide = sub.add_parser('prompt-guide')
+    prompt_guide.add_argument('--topic', default='overview')
+    prompt_guide.add_argument('--offset', type=int, default=0)
     prep = sub.add_parser('prepare-training')
     prep.add_argument('model')
     prep.add_argument('name')
@@ -266,6 +270,11 @@ def main():
         p.add_argument('--seed', type=int, default=42)
         p.add_argument('--wait', action='store_true')
     args = parser.parse_args()
+    if args.command == 'prompt-guide':
+        result = asyncio.run(studio.Tools().qwen_image21_prompt_guide(args.topic, args.offset))
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        if not result['ok']: sys.exit(1)
+        return
     if args.command in ('project', 'project-reset', 'project-select'):
         result = project_workspace.info(studio) if args.command == 'project' else project_workspace.select(studio, args.path if args.command == 'project-select' else None)
         print(json.dumps(result, ensure_ascii=False)); return

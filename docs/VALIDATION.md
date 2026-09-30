@@ -44,3 +44,11 @@ Public sources replace machine-specific tools and source paths with discovery an
 - Actual MCP: 14 tools, filename search and CP932 reading verified. Activity API requires authentication (anonymous 401); served compatibility JS has no-store and passes module syntax validation.
 - read_workspace_file now returns a structured object with content and continuation positions; list_workspace returns entries and next_offset. Consumers of the previous string/list return types must update.
 - The activity bar describes desktop chat tasks. MCP/CLI jobs remain independently tracked through task_result. No inference benchmark, all-model cancellation guarantee, general PDF/Office parsing or clean-machine installation claim is made.
+
+## Qwen Image 2.1 prompt skill (2026-09-30)
+
+- Twenty offline regressions pass: fixed topics, invalid inputs, paragraph pagination, complete infographic text preservation, canonical-source freshness, malformed-source fallback, instruction replacement/idempotency, project independence and helper reload on a changed file signature.
+- Fresh MCP connection enumerated 15 tools and read the multi-reference guide. CLI read a local-edit guide. The live toolkit and existing preset were updated while preserving unrelated settings.
+- A disposable Open WebUI API client using the deployed preset consulted overview and t2i, received actual guide results and returned an English prompt for a synthetic blue-bowl request. No image-generation or command tool was invoked. This verifies the model/tool/API path; the desktop chat workflow was not separately operated for this change.
+- Public source scan passes on 63 files. Generic core/recipe snapshots are included; private runtime paths and private source notes are replaced with portable guidance and upstream links. Official PE model weights and full system prompts are not bundled.
+- This is prompt-design guidance. Reference/edit execution, image quality, transparency success, fresh installation and unrestricted content generation are not validated by these tests.

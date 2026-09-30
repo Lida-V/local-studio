@@ -68,6 +68,19 @@ ComfyUIを起動してから「青いティーポットを512×512で生成し�
 & 'C:\AI\LocalLLM\Studio-CLI.cmd' task '返されたjob_id'
 ```
 
+## Qwen Image 2.1のプロンプト設計
+
+「Qwen Image 2.1用に、日本語タイトル付きの表紙プロンプトを作って」のように指定すると、エージェントは `qwen_image21_prompt_guide` で基本ガイドと用途に合う項目を参照します。参照キャラの新規場面、部分編集、透過、日本語サムネ、長文図解、複数参照、画像なしT2Iの設計資料を同梱しています。例文は未生成の設計例です。
+
+1ページ最大1,800文字で、続きは `next_offset` を指定します。Codex／Claudeも同じMCPツールを使えます。プロンプトの作成だけなら画像生成は始めません。標準画像ツールは参照入力のない新規生成のみで、編集用の指示を作ることと編集workflowを実行できることは別です。
+
+```powershell
+& 'C:\AI\LocalLLM\Studio-CLI.cmd' prompt-guide --topic overview
+& 'C:\AI\LocalLLM\Studio-CLI.cmd' prompt-guide --topic japanese_cover
+```
+
+公開版には汎用ガイドのスナップショットを同梱しています。独自の正本へリンクする場合は `scripts/Link-PromptSkill.ps1 -SourcePath <skill-folder>` を使用します。既存フォルダは保存され、上書きはしません。既存環境への差分配備は、バックエンドが空いているときに `python scripts/Deploy-PromptSkill.py`。設定を保存してツールと参照指示だけを更新します。MCPに新しいツールが表示されなければ再接続してください。
+
 ## 通信範囲
 
 Qwenと各画像・動画モデルの推論はローカルです。Codex／Claudeから呼び出す場合、その依頼とツール結果は呼び出し元にも渡ります。PC内だけで扱う内容は専用アプリで入力してください。
