@@ -1,5 +1,8 @@
 # Development notes
 
+- Resource telemetry uses fixed read-only CLI/MCP commands. Restrict desktop IPC to the trusted main frame, deduplicate concurrent requests and cache recent snapshots. Do not start models, enumerate unrelated processes or expose chat contents through telemetry.
+- Unknown measurements remain null. PC-wide VRAM, owned-process RSS, weight storage, tested hardware and minimum task requirements are different quantities. Shared-port Comfy queue counts cannot identify the generating model. See `Test-ResourceMonitor.py`, `Test-ResourceIPC.cjs` and `Test-ResourceUI.cjs`.
+
 - Keep desktop cache separate from the persistent Open WebUI database. Validate resolved paths and reparse points before cleanup.
 - Windows MCP clients may use a Job Object that terminates every descendant. A subprocess or double-spawn alone does not make a job survive disconnection. Use the independently launched queue worker.
 - Windows background descendants can keep captured stdout/stderr pipes open after their parent exits. Launch long-running servers with real log files rather than waiting for pipe EOF.

@@ -72,6 +72,20 @@ ipcMain.handle('project:info', event => { checkProjectSender(event); return stud
 ipcMain.handle('project:choose', event => { checkProjectSender(event); return chooseProject(); });
 ipcMain.handle('project:reset', event => { checkProjectSender(event); return resetProject(); });
 ipcMain.handle('project:open', event => { checkProjectSender(event); return openProject(); });
+let resourceRead;
+let resourceCache;
+let resourceCheckedAt = 0;
+ipcMain.handle('resources:status', event => {
+  checkProjectSender(event);
+  if (resourceCache && Date.now() - resourceCheckedAt < 2000) return resourceCache;
+  if (!resourceRead) {
+    resourceRead = studioCommand(['resource-status']).then(value => {
+      resourceCache = value; resourceCheckedAt = Date.now(); return value;
+    }).catch(() => { throw new Error('PCリソースを取得できませんでした。次回の更新で再接続します。'); })
+      .finally(() => { resourceRead = undefined; });
+  }
+  return resourceRead;
+});
 function checkTrainingSender(event) {
   if (!trainingWindow || event.sender !== trainingWindow.webContents || event.senderFrame.url !== trainingUrl) throw new Error('Invalid training page');
 }

@@ -1,5 +1,18 @@
 # Validation scope
 
+## PC resource panel (2026-10-06)
+
+The resource CLI was checked on the existing Windows/RTX 4090 deployment without starting a generation job. CPU, RAM, NVIDIA GPU utilization/VRAM/temperature, C/D disk capacity and nonce-owned conversation-engine RSS were available. RSS includes shared pages; PC-wide GPU memory is not attributed to an individual task. Minimum task RAM/VRAM remain unmeasured; weight storage, configured sizes and previously tested hardware are shown separately.
+
+- `Test-ResourceMonitor.py`: 17 offline cases for unavailable/invalid measurements, bounded loopback requests, partial queue failures, task identification, stale/reused process identities and minimal Windows environments.
+- `Test-ResourceIPC.cjs`: trusted sender/frame/origin, fixed command, concurrent-request deduplication, cache and retry.
+- `Test-ResourceUI.cjs`: unknown values, meters, task/manual selection, stale samples, drawer and visibility behavior.
+- `Verify-ResourceUI.cjs` supports an independent hidden Electron fixture using the unchanged preload, synthetic IPC and intercepted HTTP. Supply existing Electron and Playwright paths using its CLI flags. It does not open production chats or restart the live application.
+
+The hidden Electron fixture passed12 checks at1280×880 and760×600 CSS pixels, with original preload SHA unchanged, zero live-backend requests and fixture profiles removed. The images were visually inspected. A fresh MCP connection advertised16 tools and returned CPU/RAM/GPU telemetry. The initial MCP GPU check failed because the SDK omitted `PROGRAMFILES`; supplementing that standard variable from a Windows known-folder lookup for the GPU child only fixed NVML initialization. No credentials or parent environment changes were needed.
+
+The updated desktop assets take effect after closing and reopening the UI. Deployment does not close the current window or stop its backend, worker or GPU jobs. NVIDIA telemetry is supported; other GPU vendors and minimum requirements for actual LoRA training remain unverified. Conversation status and owned-engine RSS use Strata's metadata; with llama.cpp these fields remain unknown while PC-wide and Comfy measurements work.
+
 ## Original working deployment
 
 Windows, RTX 4090 24 GB, Python 3.11, Open WebUI 0.11.4, Electron 44.4.5, MCP SDK 1.27.2, llama.cpp b11146.

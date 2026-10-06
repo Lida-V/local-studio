@@ -193,6 +193,12 @@ def serve():
     write = ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=False)
     mcp.tool(name='studio_status', annotations=read)(status)
 
+    @mcp.tool(annotations=read)
+    def resource_status() -> dict:
+        """Read CPU/RAM/GPU/disk usage and task resource guidance. Unknown requirements stay unknown. Does not start models or read conversations."""
+        import resource_monitor
+        return resource_monitor.snapshot(studio.ROOT, SUPPORT)
+
     @mcp.tool(annotations=write)
     def ask_qwen(prompt: str, image_path: str = '', max_tokens: int = 1024) -> dict:
         """Submit one local Qwen text/vision request. Optional image_path is workspace-relative. Returns a job_id; call task_result. This is a one-shot request, not a desktop conversation. Prompt/results are saved in local data/agent-jobs."""
@@ -243,6 +249,7 @@ def main():
     sub = parser.add_subparsers(dest='command', required=True)
     sub.add_parser('mcp')
     sub.add_parser('status')
+    sub.add_parser('resource-status')
     sub.add_parser('project')
     sub.add_parser('project-reset')
     sub.add_parser('project-select').add_argument('path')
@@ -272,6 +279,10 @@ def main():
         p.add_argument('--seed', type=int, default=42)
         p.add_argument('--wait', action='store_true')
     args = parser.parse_args()
+    if args.command == 'resource-status':
+        import resource_monitor
+        print(json.dumps(resource_monitor.snapshot(studio.ROOT, SUPPORT), ensure_ascii=False))
+        return
     if args.command == 'model-profiles':
         import model_profiles
         print(json.dumps(model_profiles.profiles(SUPPORT, CONFIG), ensure_ascii=False, indent=2))
