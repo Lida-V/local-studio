@@ -69,8 +69,9 @@ def main():
     catalog = model_profiles.read_catalog(SUPPORT)
     profile = model_profiles.choose(catalog, args.profile)
     artifacts = model_profiles.paths(config, profile)
+    metadata = model_profiles.artifacts(profile)
     for key, path in artifacts.items():
-        if digest(path) != profile[key]['sha256']:
+        if digest(path) != metadata[key]['sha256'].lower():
             raise RuntimeError('Installed artifact failed SHA256 verification; nothing switched.')
     changed = model_profiles.apply(config, profile)
     spec = importlib.util.spec_from_file_location('studio_cli_for_switch', SUPPORT / 'scripts/Local-Studio.py')
@@ -133,7 +134,25 @@ def main():
             process = psutil.Process(state['pid'])
             assert abs(process.create_time() - (state['startUtcTicks'] / 10000000 - 62135596800)) < 0.01
             command = process.cmdline()
-            assert Path(command[command.index('--model') + 1]).resolve() == artifacts['model']
+            if changed['inference'].get('backend') == 'strata':
+                expected_config = Path(changed['strata']['serverConfigPath']).resolve()
+                assert Path(command[command.index('--config') + 1]).resolve() == expected_config
+                token = state['launchToken']
+                assert len(token) == 32 and all(c in '0123456789abcdef' for c in token)
+                process_state = studio.ROOT / 'runtime' / ('strata-process-' + token + '.json')
+                assert Path(state['processStatePath']).resolve() == process_state.resolve()
+                identity = json.loads(process_state.read_text(encoding='utf-8'))
+                assert identity['launchToken'] == token and identity['backend'] == 'strata' and identity['jobContained'] is True
+                assert Path(identity['serverConfigPath']).resolve() == expected_config
+                assert Path(identity['sourceRoot']).resolve() == Path(changed['strata']['sourceRoot']).resolve()
+                server = psutil.Process(identity['server']['pid'])
+                assert abs(server.create_time() - (identity['server']['startUtcTicks'] / 10000000 - 62135596800)) < 0.01
+                assert Path(server.exe()).resolve() == Path(identity['server']['executable']).resolve()
+                health = model_api('/health')
+                assert health.get('service') == 'strata' and health.get('loaded') is True and health.get('images') is True
+                assert health.get('max_context') == changed['inference']['contextSize']
+            else:
+                assert Path(command[command.index('--model') + 1]).resolve() == artifacts['model']
             if before_model:
                 model_form = copy.deepcopy({key: before_model[key] for key in ('id', 'base_model_id', 'name', 'params', 'meta', 'is_active', 'access_grants') if key in before_model})
                 model_form['name'] = 'Local Studio · ' + profile['label']

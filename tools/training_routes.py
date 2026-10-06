@@ -27,7 +27,7 @@ PROFILES = {
         'url': 'https://unsloth.ai/docs/get-started/fine-tuning-llms-guide',
         'dataset': 'dataset/train.example.jsonl を参考に、messages形式のtrain.jsonlを準備します。',
         'steps': ['用途別の会話例と独立した評価用データを準備', 'GGUFではなく学習対応のbase/4bit重みを選ぶ', 'LoRA/QLoRAのrank・文脈長とGPUメモリを確認', '短い試験学習と未学習の質問で評価してから書き出す'],
-        'note': '推論できることと学習できることは別です。現在のRTX 4090で27Bの学習メモリは未検証です。'},
+        'note': 'Strataは推論環境です。Flash Nextや27BのLoRA対応・このPCでの必要メモリは未検証で、学習用重みと手順を別途選びます。'},
 }
 
 def profiles(studio):

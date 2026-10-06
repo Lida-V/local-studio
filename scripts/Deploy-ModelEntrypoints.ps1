@@ -5,7 +5,7 @@ $config = Get-Content -LiteralPath (Join-Path $support 'config/support-config.js
 $root = [IO.Path]::GetFullPath($config.target.root)
 $python = $config.chatApp.python
 $backup = Join-Path $root ('runtime/maintenance-backups/model-entries-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
-foreach ($entry in @(@('HuihuiでLocal Studio.cmd','huihui-qwen'), @('通常QwenでLocal Studio.cmd','qwen-standard'))) {
+foreach ($entry in @(@('HuihuiでLocal Studio.cmd','huihui-qwen'), @('通常QwenでLocal Studio.cmd','qwen-standard'), @('Flash NextでLocal Studio.cmd','qwen-flash-next'))) {
     $path = Join-Path $root $entry[0]
     if (Test-Path -LiteralPath $path) {
         New-Item -ItemType Directory -Force -Path $backup | Out-Null
@@ -20,4 +20,4 @@ if (Test-Path -LiteralPath $guide) {
     Copy-Item -LiteralPath $guide -Destination (Join-Path $backup 'model-profiles.md')
 }
 Copy-Item -LiteralPath (Join-Path $support 'docs/model-profiles.md') -Destination $guide
-Write-Output 'Installed Huihui and standard-Qwen model switch entries.'
+Write-Output 'Installed catalog model switch entries. Uninstalled profiles refuse activation.'

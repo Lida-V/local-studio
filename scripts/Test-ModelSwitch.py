@@ -5,6 +5,7 @@ import hashlib
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -85,6 +86,8 @@ class SwitchRecovery(unittest.TestCase):
         self.gate = {'admission_gate': True, 'admitted_chats': 0}
         self.app_offline = False
         self.running_model = self.base.resolve()
+        self.running_backend = 'llama.cpp'
+        self.process_requests = []
         self.failures = {}
         self.stop_count = self.start_count = 0
         self.runtime = SimpleNamespace(assert_idle=Mock(), free_idle=Mock(), gpu_lease=Mock(side_effect=lambda context: nullcontext()))
@@ -95,10 +98,69 @@ class SwitchRecovery(unittest.TestCase):
         self.output = io.StringIO()
 
     def command(self):
+        if self.running_backend == 'strata':
+            config = json.loads(self.config_path.read_text(encoding='utf-8'))
+            server_config = config['strata']['serverConfigPath']
+            if self.failures.get('launcher_config'):
+                server_config = str(self.root / 'apps/wrong.json')
+            return [config['target']['executable'], '--config', server_config]
         return [self.config['target']['executable'], '--model', str(self.running_model), '--mmproj', str(self.projector)]
 
     def save_state(self):
-        self.state_path.write_text(json.dumps({'pid': 1234, 'startUtcTicks': int((62135596800 + 1000) * 10000000)}), encoding='utf-8')
+        state = {'pid': 1234, 'startUtcTicks': int((62135596800 + 1000) * 10000000)}
+        if self.running_backend == 'strata':
+            config = json.loads(self.config_path.read_text(encoding='utf-8'))
+            token = 'a' * 32
+            process_state = self.root / f'runtime/strata-process-{token}.json'
+            state.update(launchToken=token, processStatePath=str(process_state))
+            identity = {'launchToken': token, 'backend': 'strata', 'jobContained': True,
+                        'sourceRoot': config['strata']['sourceRoot'],
+                        'serverConfigPath': config['strata']['serverConfigPath'],
+                        'server': {'pid': 1235, 'startUtcTicks': int((62135596800 + 1001) * 10000000),
+                                   'executable': str(self.strata_interpreter)}}
+            if self.failures.get('launcher_pid'): state['pid'] = 9999
+            if self.failures.get('launcher_ticks'): state['startUtcTicks'] += 20000000
+            if self.failures.get('launch_token'): state['launchToken'] = 'not-a-launch-nonce'
+            if self.failures.get('process_state_path'): state['processStatePath'] = str(self.root / 'runtime/unrelated.json')
+            if self.failures.get('identity_token'): identity['launchToken'] = 'b' * 32
+            if self.failures.get('identity_backend'): identity['backend'] = 'llama.cpp'
+            if self.failures.get('identity_job'): identity['jobContained'] = False
+            if self.failures.get('identity_config'): identity['serverConfigPath'] = str(self.root / 'apps/wrong.json')
+            if self.failures.get('identity_source'): identity['sourceRoot'] = str(self.root / 'apps/wrong-source')
+            if self.failures.get('identity_pid'): identity['server']['pid'] = 9999
+            if self.failures.get('identity_ticks'): identity['server']['startUtcTicks'] += 20000000
+            if self.failures.get('identity_executable'): identity['server']['executable'] = str(self.root / 'apps/wrong.exe')
+            process_state.write_text(json.dumps(identity), encoding='utf-8')
+        self.state_path.write_text(json.dumps(state), encoding='utf-8')
+
+    def fixture_process(self, pid=None):
+        if pid is None or pid == os.getpid(): return self.process
+        self.process_requests.append(pid)
+        if pid == 1234: return self.process
+        if pid == 1235: return self.strata_server_process
+        raise RuntimeError('Recorded process does not exist')
+
+    def install_strata_fixture(self):
+        self.strata_interpreter = self.root / 'apps/Strata/source/python-base.exe'
+        self.strata_interpreter.parent.mkdir(parents=True, exist_ok=True)
+        self.strata_interpreter.write_bytes(b'fixture interpreter')
+        self.strata_config = self.strata_interpreter.parent / 'strata-fixture.json'
+        self.strata_config.write_text('{}', encoding='utf-8')
+        self.shard = self.root / 'models/ngram-shard.gguf'
+        self.shard.write_bytes(b'fixture ngram shard')
+        profile = deepcopy(self.catalog['profiles'][1])
+        profile.update(id='strata', label='Fixture Strata')
+        profile['additionalArtifacts'] = [{'key': 'ngram', 'path': 'models/ngram-shard.gguf',
+            'size': self.shard.stat().st_size, 'sha256': hashlib.sha256(self.shard.read_bytes()).hexdigest()}]
+        profile['backend'] = {'kind': 'strata', 'executable': 'apps/Strata/source/python-base.exe',
+            'sourceRoot': 'apps/Strata/source', 'serverConfigPath': 'apps/Strata/source/strata-fixture.json',
+            'contextSize': 131072}
+        self.catalog['profiles'].append(profile)
+        self.catalog_path.write_text(json.dumps(self.catalog), encoding='utf-8')
+        self.strata_server_process = SimpleNamespace(create_time=lambda: 1001.0,
+                                                     exe=lambda: str(self.strata_interpreter))
+        self.strata_health = {'service': 'strata', 'loaded': True, 'images': True, 'max_context': 131072}
+        return profile
 
     def api_factory(self, base):
         owner = self
@@ -107,6 +169,7 @@ class SwitchRecovery(unittest.TestCase):
             def __call__(self, path, value=None):
                 owner.api_calls.append((base, path))
                 if base.endswith(':18080'):
+                    if path == '/health': return deepcopy(owner.strata_health)
                     return deepcopy(owner.slots)
                 if owner.app_offline:
                     raise urllib.error.URLError(ConnectionRefusedError())
@@ -139,7 +202,9 @@ class SwitchRecovery(unittest.TestCase):
                 raise RuntimeError('old process stopped but cleanup failed')
         elif name == 'Start-LocalLLM.ps1':
             self.start_count += 1
-            self.running_model = Path(json.loads(self.config_path.read_text())['inference']['modelPath']).resolve()
+            active = json.loads(self.config_path.read_text())
+            self.running_model = Path(active['inference']['modelPath']).resolve()
+            self.running_backend = active['inference'].get('backend', 'llama.cpp')
             self.save_state()
             if self.start_count == 1 and self.failures.get('new_start'):
                 raise RuntimeError('new startup failed')
@@ -156,7 +221,7 @@ class SwitchRecovery(unittest.TestCase):
              patch.object(switch.studio, 'media_runtime', return_value=(self.runtime, SimpleNamespace())), \
              patch.object(switch.importlib.util, 'spec_from_file_location', return_value=self.fake_spec), \
              patch.object(switch.importlib.util, 'module_from_spec', return_value=self.fake_cli), \
-             patch('psutil.Process', return_value=self.process), \
+             patch('psutil.Process', side_effect=self.fixture_process), \
              patch.object(switch.urllib.request, 'urlopen', side_effect=AssertionError('No real network calls')), \
              patch('subprocess.run', side_effect=AssertionError('No real subprocesses')), \
              patch('subprocess.Popen', side_effect=AssertionError('No real subprocesses')), \
@@ -299,6 +364,107 @@ class SwitchRecovery(unittest.TestCase):
         self.run_switch()
         self.assertEqual(self.running_model, self.candidate.resolve())
         self.assertEqual(self.preset_updates, [])
+
+    def test_missing_incomplete_and_wrong_hash_shard_never_stop_or_write(self):
+        profile = self.install_strata_fixture()
+        original_bytes = self.shard.read_bytes()
+        for condition in ['missing', 'incomplete', 'same-size-corruption', 'wrong-catalog-hash']:
+            with self.subTest(condition=condition):
+                self.shard.write_bytes(original_bytes)
+                profile['additionalArtifacts'][0]['sha256'] = hashlib.sha256(original_bytes).hexdigest()
+                if condition == 'missing': self.shard.unlink()
+                if condition == 'incomplete': self.shard.write_bytes(b'x')
+                if condition == 'same-size-corruption': self.shard.write_bytes(b'x' * len(original_bytes))
+                if condition == 'wrong-catalog-hash': profile['additionalArtifacts'][0]['sha256'] = '0' * 64
+                self.catalog_path.write_text(json.dumps(self.catalog), encoding='utf-8')
+                with self.assertRaises((FileNotFoundError, ValueError, RuntimeError)):
+                    self.run_switch('strata')
+                self.assertEqual(self.script_calls, [])
+                self.assertEqual(self.api_calls, [])
+                self.assertEqual(self.config_path.read_bytes(), self.original)
+                self.assertFalse((self.root / 'runtime/maintenance-backups').exists())
+
+    def test_strata_success_uses_real_server_identity_and_ready_health(self):
+        self.install_strata_fixture()
+        self.run_switch('strata')
+        changed = json.loads(self.config_path.read_text(encoding='utf-8'))
+        self.assertEqual(changed['inference']['backend'], 'strata')
+        self.assertEqual(changed['inference']['alias'], 'stable-alias')
+        self.assertEqual(changed['inference']['contextSize'], 131072)
+        self.assertEqual(changed['strata']['serverConfigPath'], str(self.strata_config.resolve()))
+        self.assertEqual(self.process_requests, [1234, 1235])
+        self.assertIn(('http://127.0.0.1:18080', '/health'), self.api_calls)
+        self.assertEqual(self.live_model['params'], self.before_model['params'])
+        self.assertEqual(self.live_model['meta'], self.before_model['meta'])
+        self.assertEqual(json.loads(self.output.getvalue())['active_profile'], 'strata')
+
+    def test_strata_owned_process_failures_restore_legacy_backend(self):
+        self.install_strata_fixture()
+        for failure in ['launcher_pid', 'launcher_ticks', 'launcher_config', 'launch_token',
+                        'process_state_path', 'identity_token', 'identity_backend', 'identity_job',
+                        'identity_config', 'identity_source', 'identity_pid', 'identity_ticks',
+                        'identity_executable']:
+            with self.subTest(failure=failure):
+                self.failures = {failure: True}
+                with self.assertRaises((AssertionError, RuntimeError, KeyError, ValueError)):
+                    self.run_switch('strata')
+                self.assert_original_recovered()
+                self.assertEqual(self.running_backend, 'llama.cpp')
+                self.assertNotIn('backend', json.loads(self.config_path.read_text())['inference'])
+                self.assertNotIn('strata', json.loads(self.config_path.read_text()))
+
+    def test_strata_readiness_requires_service_loaded_images_and_context(self):
+        self.install_strata_fixture()
+        ready = deepcopy(self.strata_health)
+        for field, value in [('service', 'llama.cpp'), ('loaded', False), ('loaded', 1),
+                             ('images', False), ('images', 1), ('max_context', 8192)]:
+            with self.subTest(field=field, value=value):
+                self.strata_health = {**ready, field: value}
+                with self.assertRaises(AssertionError):
+                    self.run_switch('strata')
+                self.assert_original_recovered()
+        for field in ready:
+            with self.subTest(missing=field):
+                self.strata_health = {key: value for key, value in ready.items() if key != field}
+                with self.assertRaises(AssertionError):
+                    self.run_switch('strata')
+                self.assert_original_recovered()
+
+    def test_strata_start_failure_restores_original_runtime_config_and_preset(self):
+        self.install_strata_fixture()
+        self.failures['new_start'] = True
+        with self.assertRaisesRegex(RuntimeError, 'new startup failed'):
+            self.run_switch('strata')
+        self.assert_original_recovered()
+        self.assertEqual(self.running_backend, 'llama.cpp')
+
+    def test_uppercase_catalog_hashes_verify_all_shards(self):
+        profile = self.install_strata_fixture()
+        for artifact in switch.model_profiles.artifacts(profile).values():
+            artifact['sha256'] = artifact['sha256'].upper()
+        self.catalog_path.write_text(json.dumps(self.catalog), encoding='utf-8')
+        self.run_switch('strata')
+        self.assertEqual(self.running_backend, 'strata')
+
+    def test_strata_to_explicit_llama_profile_restores_executable_and_context(self):
+        self.install_strata_fixture()
+        old_server = self.root / 'bin/llama/llama-server.exe'
+        old_server.parent.mkdir(parents=True)
+        old_server.write_bytes(b'fixture old executable')
+        self.catalog['profiles'][0]['backend'] = {'kind': 'llama.cpp',
+            'executable': 'bin/llama/llama-server.exe', 'contextSize': 8192}
+        self.catalog_path.write_text(json.dumps(self.catalog), encoding='utf-8')
+        self.run_switch('strata')
+        self.run_switch('original')
+        restored = json.loads(self.config_path.read_text(encoding='utf-8'))
+        self.assertEqual(restored['target']['executable'], str(old_server.resolve()))
+        self.assertEqual(restored['inference']['backend'], 'llama.cpp')
+        self.assertEqual(restored['inference']['contextSize'], 8192)
+        self.assertEqual(restored['inference']['modelPath'], str(self.base.resolve()))
+        self.assertEqual(self.running_backend, 'llama.cpp')
+        self.assertEqual(self.live_model['params'], self.before_model['params'])
+        self.assertEqual(self.live_model['meta'], self.before_model['meta'])
+        self.assertEqual(self.process_requests, [1234, 1235, 1234])
 
 
 if __name__ == '__main__':

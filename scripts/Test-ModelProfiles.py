@@ -204,6 +204,162 @@ class ModelProfiles(unittest.TestCase):
             model_profiles.apply(self.config, selected)
             model_profiles.profiles(self.support, self.config)
 
+    def strata_profile(self):
+        shard = self.root / 'models/ngram-shard.gguf'
+        shard.write_bytes(b'ngram table fixture')
+        source = self.root / 'apps/Strata/source'
+        source.mkdir(parents=True, exist_ok=True)
+        executable = source / 'python.exe'
+        executable.write_bytes(b'fixture executable')
+        server_config = source / 'strata-fixture.json'
+        server_config.write_text('{}', encoding='utf-8')
+        profile = self.profile('strata', self.candidate)
+        profile['additionalArtifacts'] = [{'key': 'ngram', 'path': 'models/' + shard.name,
+                                          'size': shard.stat().st_size, 'sha256': 'd' * 64}]
+        profile['backend'] = {'kind': 'strata', 'executable': 'apps/Strata/source/python.exe',
+                              'sourceRoot': 'apps/Strata/source',
+                              'serverConfigPath': 'apps/Strata/source/strata-fixture.json',
+                              'contextSize': 131072}
+        return profile, shard, source, executable, server_config
+
+    def link_directory(self, link, target):
+        if os.name == 'nt':
+            subprocess.run(['cmd', '/c', 'mklink', '/J', str(link), str(target)], check=True, capture_output=True)
+            self.addCleanup(lambda: link.rmdir() if link.exists() else None)
+        else:
+            link.symlink_to(target, target_is_directory=True)
+            self.addCleanup(lambda: link.unlink(missing_ok=True))
+
+    def test_all_required_shards_are_checked_and_missing_shard_is_not_installed(self):
+        profile, shard, *_ = self.strata_profile()
+        self.catalog['profiles'].append(profile)
+        self.write_catalog()
+        with patch.object(Path, 'read_bytes', side_effect=AssertionError('Do not hash or load model weights here')):
+            resolved = model_profiles.paths(self.config, profile)
+            self.assertTrue(model_profiles.profiles(self.support, self.config)[-1]['installed'])
+        self.assertEqual(resolved['ngram'], shard.resolve())
+        shard.write_bytes(b'incomplete')
+        with self.assertRaisesRegex(ValueError, 'ngram.*size'):
+            model_profiles.apply(self.config, profile)
+        self.assertFalse(model_profiles.profiles(self.support, self.config)[-1]['installed'])
+        shard.unlink()
+        with self.assertRaises(FileNotFoundError):
+            model_profiles.apply(self.config, profile)
+        self.assertFalse(model_profiles.profiles(self.support, self.config)[-1]['installed'])
+
+    def test_additional_artifact_metadata_cannot_override_named_artifacts(self):
+        profile, *_ = self.strata_profile()
+        cases = [None, {}, [None], [{'key': 'model'}], [{'key': 'mmproj'}],
+                 [{'key': '../shard'}], [{'key': True}],
+                 [profile['additionalArtifacts'][0], deepcopy(profile['additionalArtifacts'][0])]]
+        for extra in cases:
+            with self.subTest(additional=extra):
+                malformed = deepcopy(profile)
+                malformed['additionalArtifacts'] = extra
+                with self.assertRaises(ValueError):
+                    model_profiles.choose({'profiles': [malformed]}, 'strata')
+        for field, value in [('size', True), ('size', 0), ('size', '12'), ('sha256', 'bad')]:
+            malformed = deepcopy(profile)
+            malformed['additionalArtifacts'][0][field] = value
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                model_profiles.choose({'profiles': [malformed]}, 'strata')
+
+    def test_strata_apply_preserves_user_settings_and_resolves_runtime(self):
+        profile, _, source, executable, server_config = self.strata_profile()
+        self.config['strata'] = {'calibration': {'value': 42}}
+        before = deepcopy(self.config)
+        result = model_profiles.apply(self.config, profile)
+        self.assertEqual(result['target']['executable'], str(executable.resolve()))
+        self.assertEqual(result['strata']['sourceRoot'], str(source.resolve()))
+        self.assertEqual(result['strata']['serverConfigPath'], str(server_config.resolve()))
+        self.assertEqual(result['strata']['calibration'], before['strata']['calibration'])
+        self.assertEqual(result['inference']['backend'], 'strata')
+        self.assertEqual(result['inference']['contextSize'], 131072)
+        for key in ['host', 'port', 'alias', 'parallel', 'gpuLayers']:
+            self.assertEqual(result['inference'][key], before['inference'][key])
+        self.assertEqual(result['chatApp'], before['chatApp'])
+        self.assertEqual(self.config, before)
+
+    def test_runtime_files_and_directory_have_distinct_requirements(self):
+        profile, _, source, executable, server_config = self.strata_profile()
+        for field, wrong_path in [('executable', 'apps/Strata/source'),
+                                  ('sourceRoot', 'apps/Strata/source/python.exe'),
+                                  ('serverConfigPath', 'apps/Strata/source')]:
+            with self.subTest(field=field):
+                bad = deepcopy(profile)
+                bad['backend'][field] = wrong_path
+                with self.assertRaises(FileNotFoundError):
+                    model_profiles.apply(self.config, bad)
+        self.catalog['profiles'].append(profile)
+        self.write_catalog()
+        for path in (server_config, executable):
+            path.unlink()
+            self.assertFalse(model_profiles.profiles(self.support, self.config)[-1]['installed'])
+
+    def test_backend_paths_reject_traversal_absolute_stream_and_wrong_folder(self):
+        profile, *_ = self.strata_profile()
+        for field in ('executable', 'sourceRoot', 'serverConfigPath'):
+            for relative in ['apps/../apps/Strata/source/python.exe', '/apps/Strata/source/python.exe',
+                             r'C:\apps\Strata\source\python.exe', r'C:apps\Strata\source\python.exe',
+                             r'\\server\share\python.exe', 'apps/Strata/source/python.exe:secret',
+                             'bin/python.exe', 'apps', '', None]:
+                bad = deepcopy(profile)
+                bad['backend'][field] = relative
+                with self.subTest(field=field, path=relative), self.assertRaises(ValueError):
+                    model_profiles.apply(self.config, bad)
+        for kind, context in [('missing', 8192), ('strata', True), ('strata', 8191),
+                              ('strata', 262145), ('strata', '131072')]:
+            bad = deepcopy(profile)
+            bad['backend'].update(kind=kind, contextSize=context)
+            with self.subTest(kind=kind, context=context), self.assertRaises(ValueError):
+                model_profiles.apply(self.config, bad)
+
+    def test_runtime_links_cannot_escape_apps_or_replace_the_apps_boundary(self):
+        profile, *_ = self.strata_profile()
+        outside = Path(self.temp.name) / 'outside-runtime'
+        outside.mkdir()
+        (outside / 'python.exe').write_bytes(b'outside')
+        (outside / 'strata.json').write_text('{}', encoding='utf-8')
+        link = self.root / 'apps/escape'
+        self.link_directory(link, outside)
+        for field, relative in [('executable', 'apps/escape/python.exe'),
+                                ('sourceRoot', 'apps/escape'),
+                                ('serverConfigPath', 'apps/escape/strata.json')]:
+            bad = deepcopy(profile)
+            bad['backend'][field] = relative
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                model_profiles.apply(self.config, bad)
+        isolated = Path(self.temp.name) / 'runtime-boundary'
+        isolated.mkdir()
+        self.link_directory(isolated / 'apps', outside)
+        bad_root = deepcopy(self.config)
+        bad_root['target']['root'] = str(isolated)
+        with self.assertRaises(ValueError):
+            model_profiles.runtime_path(bad_root, 'apps/python.exe', 'apps')
+        self.assertTrue((outside / 'python.exe').exists())
+
+    def test_explicit_llama_backend_restores_runtime_after_strata(self):
+        profile, *_ = self.strata_profile()
+        current = model_profiles.apply(self.config, profile)
+        old = deepcopy(self.catalog['profiles'][0])
+        old_server = self.root / 'bin/llama/llama-server.exe'
+        old_server.parent.mkdir(parents=True)
+        old_server.write_bytes(b'old executable')
+        old['backend'] = {'kind': 'llama.cpp', 'executable': 'bin/llama/llama-server.exe', 'contextSize': 8192}
+        result = model_profiles.apply(current, old)
+        self.assertEqual(result['target']['executable'], str(old_server.resolve()))
+        self.assertEqual(result['inference']['backend'], 'llama.cpp')
+        self.assertEqual(result['inference']['contextSize'], 8192)
+        self.assertEqual(result['inference']['modelPath'], str(self.base.resolve()))
+
+    def test_runtime_resolver_requires_an_absolute_local_installation_root(self):
+        self.strata_profile()
+        for root in ['', '.', 'relative-root', '//example.test/share', r'\\server\share']:
+            config = deepcopy(self.config)
+            config['target']['root'] = root
+            with self.subTest(root=root), self.assertRaises(ValueError):
+                model_profiles.runtime_path(config, 'apps/Strata/source/python.exe', 'apps')
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

@@ -5,10 +5,14 @@
     "executable": "C:\\AI\\LocalLLM\\bin\\llama.cpp-b11146\\llama-server.exe",
     "defaultUrl": "http://127.0.0.1:18080"
   },
+  "supporter": {
+    "pythonExecutable": "python"
+  },
   "inference": {
     "host": "127.0.0.1",
     "port": 18080,
     "alias": "qwen3.8-27b-local",
+    "backend": "llama.cpp",
     "contextSize": 8192,
     "parallel": 1,
     "modelPath": "C:\\AI\\LocalLLM\\models\\Qwen3.8-27B\\Qwen3.8-27B-UD-Q4_K_M.gguf",
@@ -27,9 +31,6 @@
     "workspace": "C:\\AI\\LocalLLM\\workspace",
     "modelId": "local-studio-agent",
     "comfyUrl": "http://127.0.0.1:8188"
-  },
-  "supporter": {
-    "pythonExecutable": "python"
   },
   "trainingRoutes": {}
 }

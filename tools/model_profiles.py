@@ -6,6 +6,20 @@ import re
 from stat import S_ISREG
 
 
+def artifacts(profile):
+    """Named pinned artifacts, including all shards required by an optional backend."""
+    result = {role: profile.get(role) for role in ('model', 'mmproj')}
+    extra = profile.get('additionalArtifacts', [])
+    if not isinstance(extra, list): raise ValueError('Additional artifacts must be a list.')
+    for artifact in extra:
+        if not isinstance(artifact, dict): raise ValueError('Additional artifacts must be objects.')
+        key = artifact.get('key')
+        if not isinstance(key, str) or not re.fullmatch(r'[a-z][a-z0-9_]{0,31}', key) or key in result:
+            raise ValueError('Additional artifact keys must be unique identifiers.')
+        result[key] = artifact
+    return result
+
+
 def _entries(catalog):
     if not isinstance(catalog, dict) or not isinstance(catalog.get('profiles'), list):
         raise ValueError('Model catalog must contain a profiles list.')
@@ -17,8 +31,7 @@ def _entries(catalog):
         ids.append(profile['id'])
         if not isinstance(profile.get('label'), str):
             raise ValueError('Each model profile needs a label.')
-        for role in ('model', 'mmproj'):
-            artifact = profile.get(role)
+        for role, artifact in artifacts(profile).items():
             if not isinstance(artifact, dict) or not isinstance(artifact.get('path'), str):
                 raise ValueError('Each model profile needs model and mmproj artifact paths.')
             if type(artifact.get('size')) is not int or artifact['size'] <= 0:
@@ -75,8 +88,7 @@ def _artifact_path(config, relative: str) -> Path:
 def paths(config, profile) -> dict:
     """Validate files and exact expected sizes; activation performs SHA256 separately."""
     result = {}
-    for role in ('model', 'mmproj'):
-        artifact = profile[role]
+    for role, artifact in artifacts(profile).items():
         if type(artifact.get('size')) is not int or artifact['size'] <= 0:
             raise ValueError('Artifact expected sizes must be positive integers.')
         path = _artifact_path(config, artifact['path'])
@@ -106,12 +118,49 @@ def identify(config, catalog):
     return None
 
 
+def runtime_path(config, relative, folder, directory=False):
+    """Resolve optional backend paths only inside the dedicated installation."""
+    if not isinstance(relative, str) or not relative or ':' in relative or '\x00' in relative:
+        raise ValueError('Backend paths must be relative installation paths.')
+    portable = PurePosixPath(relative.replace('\\', '/'))
+    windows = PureWindowsPath(relative)
+    if portable.is_absolute() or windows.root or windows.drive or '..' in portable.parts or not portable.parts or portable.parts[0] != folder:
+        raise ValueError('Backend path escaped its dedicated installation folder.')
+    configured_root = Path(config['target']['root'])
+    if not configured_root.is_absolute() or str(configured_root).startswith(('\\\\', '//')):
+        raise ValueError('The configured runtime root must be an absolute local folder.')
+    root = configured_root.resolve()
+    path = (root / Path(*portable.parts)).resolve()
+    boundary = (root / folder).resolve()
+    if boundary == root or not boundary.is_relative_to(root) or path == boundary or not path.is_relative_to(boundary):
+        raise ValueError('Backend path or link escaped the configured root.')
+    if not (path.is_dir() if directory else path.is_file()):
+        raise FileNotFoundError('Backend file/directory is not prepared: ' + relative)
+    return path
+
+
 def apply(config, profile) -> dict:
-    """Return a new configuration with only modelPath and mmprojPath replaced."""
-    artifacts = paths(config, profile)
+    """Preserve unrelated settings and select a validated optional runtime, if specified."""
+    resolved = paths(config, profile)
     result = deepcopy(config)
-    result['inference']['modelPath'] = str(artifacts['model'])
-    result['inference']['mmprojPath'] = str(artifacts['mmproj'])
+    result['inference']['modelPath'] = str(resolved['model'])
+    result['inference']['mmprojPath'] = str(resolved['mmproj'])
+    backend = profile.get('backend')
+    if backend is not None:
+        if not isinstance(backend, dict) or backend.get('kind') not in ('llama.cpp', 'strata'):
+            raise ValueError('Unknown model runtime backend.')
+        context = backend.get('contextSize')
+        if type(context) is not int or not 8192 <= context <= 262144:
+            raise ValueError('Backend context must be within the native supported range.')
+        kind = backend['kind']
+        folder = 'apps' if kind == 'strata' else 'bin'
+        result['target']['executable'] = str(runtime_path(config, backend.get('executable'), folder))
+        result['inference']['backend'] = kind
+        result['inference']['contextSize'] = context
+        if kind == 'strata':
+            result['strata'] = {**result.get('strata', {}),
+                'sourceRoot': str(runtime_path(config, backend.get('sourceRoot'), 'apps', True)),
+                'serverConfigPath': str(runtime_path(config, backend.get('serverConfigPath'), 'apps'))}
     return result
 
 
@@ -127,8 +176,10 @@ def profiles(support, config) -> list:
             'model': deepcopy(profile['model']), 'mmproj': deepcopy(profile['mmproj']),
             'source': deepcopy(profile['source']), 'license': deepcopy(profile.get('license')),
         }
+        if 'backend' in profile: row['backend'] = deepcopy(profile['backend'])
+        if 'additionalArtifacts' in profile: row['additionalArtifacts'] = deepcopy(profile['additionalArtifacts'])
         try:
-            paths(config, profile)
+            apply(config, profile)
         except (OSError, ValueError) as error:
             row['unavailable_reason'] = type(error).__name__
         else:

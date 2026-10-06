@@ -19,7 +19,12 @@
         "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
         "url": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF"
       },
-      "license": "Apache-2.0"
+      "license": "Apache-2.0",
+      "backend": {
+        "kind": "llama.cpp",
+        "executable": "bin/llama.cpp-b11146/llama-server.exe",
+        "contextSize": 8192
+      }
     },
     {
       "id": "huihui-qwen",
@@ -39,7 +44,47 @@
         "revision": "3f101cd22b7999228bbd5d79a33975414eb9758b",
         "url": "https://huggingface.co/huihui-ai/Huihui-Qwen3.8-27B-abliterated-GGUF"
       },
-      "license": "Apache-2.0"
+      "license": "Apache-2.0",
+      "backend": {
+        "kind": "llama.cpp",
+        "executable": "bin/llama.cpp-b11146/llama-server.exe",
+        "contextSize": 8192
+      }
+    },
+    {
+      "id": "qwen-flash-next",
+      "label": "Qwen3.8 Flash Next IQ3_S / Strata",
+      "model": {
+        "path": "models/Qwen3.8-Flash-Next/IQ3_S/Qwen3.8-Flash-Next-GSQ-RCO-IQ3_S-00001-of-00002.gguf",
+        "size": 54817524224,
+        "sha256": "4c1eb2ceb4915e1192f4f386021897bde56a97f40a0bb78bb86465e0f7d2aca3"
+      },
+      "mmproj": {
+        "path": "models/Qwen3.8-Flash-Next/mmproj-Qwen3.8-Flash-Next-BF16.gguf",
+        "size": 907543008,
+        "sha256": "b1a82259702816a5330d7bd7607cd9676b11780e79ff7348c21103ff3ce49bd0"
+      },
+      "additionalArtifacts": [
+        {
+          "key": "shard2",
+          "path": "models/Qwen3.8-Flash-Next/IQ3_S/Qwen3.8-Flash-Next-GSQ-RCO-IQ3_S-00002-of-00002.gguf",
+          "size": 28800138432,
+          "sha256": "316b46f3a2dbd68c900f43136ab9449f9dcc3725dfd8c794847c204bc161e113"
+        }
+      ],
+      "source": {
+        "repo": "ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-GGUF",
+        "revision": "ed59f92082b1e93c0e96d60a8b11aab089b52f09",
+        "url": "https://huggingface.co/ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-GGUF"
+      },
+      "license": "Qwen Community License 1.0 (upstream weights)",
+      "backend": {
+        "kind": "strata",
+        "executable": "apps/Strata/source/.venv/Scripts/python.exe",
+        "sourceRoot": "apps/Strata/source",
+        "serverConfigPath": "apps/Strata/source/strata-iq3_s.json",
+        "contextSize": 131072
+      }
     }
   ]
 }
