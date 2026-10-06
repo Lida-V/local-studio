@@ -145,21 +145,25 @@ class SwitchRecovery(unittest.TestCase):
         self.strata_interpreter.parent.mkdir(parents=True, exist_ok=True)
         self.strata_interpreter.write_bytes(b'fixture interpreter')
         self.strata_config = self.strata_interpreter.parent / 'strata-fixture.json'
-        self.strata_config.write_text('{}', encoding='utf-8')
         self.shard = self.root / 'models/ngram-shard.gguf'
         self.shard.write_bytes(b'fixture ngram shard')
+        self.server_config = {'model_name': 'fixture-strata-canonical',
+            'args': ['--native', str(self.candidate), '--ple-gguf', str(self.shard)],
+            'vision': {'model': str(self.candidate), 'mmproj': str(self.projector)}}
+        self.strata_config.write_text(json.dumps(self.server_config), encoding='utf-8')
         profile = deepcopy(self.catalog['profiles'][1])
         profile.update(id='strata', label='Fixture Strata')
-        profile['additionalArtifacts'] = [{'key': 'ngram', 'path': 'models/ngram-shard.gguf',
+        profile['additionalArtifacts'] = [{'key': 'shard2', 'path': 'models/ngram-shard.gguf',
             'size': self.shard.stat().st_size, 'sha256': hashlib.sha256(self.shard.read_bytes()).hexdigest()}]
         profile['backend'] = {'kind': 'strata', 'executable': 'apps/Strata/source/python-base.exe',
             'sourceRoot': 'apps/Strata/source', 'serverConfigPath': 'apps/Strata/source/strata-fixture.json',
-            'contextSize': 131072}
+            'contextSize': 131072, 'modelName': 'fixture-strata-canonical', 'pleArtifact': 'shard2'}
         self.catalog['profiles'].append(profile)
         self.catalog_path.write_text(json.dumps(self.catalog), encoding='utf-8')
         self.strata_server_process = SimpleNamespace(create_time=lambda: 1001.0,
                                                      exe=lambda: str(self.strata_interpreter))
-        self.strata_health = {'service': 'strata', 'loaded': True, 'images': True, 'max_context': 131072}
+        self.strata_health = {'service': 'strata', 'loaded': True, 'images': True,
+                              'max_context': 131072, 'model': 'fixture-strata-canonical'}
         return profile
 
     def api_factory(self, base):
@@ -265,6 +269,67 @@ class SwitchRecovery(unittest.TestCase):
         self.assertEqual(self.script_calls, [])
         self.assertEqual(self.api_calls, [])
         self.assertEqual(self.config_path.read_bytes(), self.original)
+
+    def test_strata_config_mismatch_never_stops_writes_or_calls_live_api(self):
+        profile = self.install_strata_fixture()
+        expected_server = deepcopy(self.server_config)
+        expected_backend = deepcopy(profile['backend'])
+        cases = ('native', 'duplicate_native', 'missing_native_value', 'relative_native',
+                 'vision_model', 'vision_mmproj', 'ple', 'duplicate_ple', 'canonical',
+                 'missing_model_name', 'unknown_ple_key')
+        for case in cases:
+            with self.subTest(case=case):
+                server = deepcopy(expected_server)
+                profile['backend'] = deepcopy(expected_backend)
+                if case == 'native':
+                    server['args'][1] = str(self.base)
+                elif case == 'duplicate_native':
+                    server['args'] += ['--native', str(self.base)]
+                elif case == 'missing_native_value':
+                    server['args'] = ['--native']
+                elif case == 'relative_native':
+                    server['args'][1] = 'models/candidate.gguf'
+                elif case == 'vision_model':
+                    server['vision']['model'] = str(self.base)
+                elif case == 'vision_mmproj':
+                    server['vision']['mmproj'] = str(self.base)
+                elif case == 'ple':
+                    server['args'][3] = str(self.candidate)
+                elif case == 'duplicate_ple':
+                    server['args'] += ['--ple-gguf', str(self.candidate)]
+                elif case == 'canonical':
+                    server['model_name'] = 'another-canonical'
+                elif case == 'missing_model_name':
+                    del profile['backend']['modelName']
+                elif case == 'unknown_ple_key':
+                    profile['backend']['pleArtifact'] = 'unexpected'
+                self.strata_config.write_text(json.dumps(server), encoding='utf-8')
+                self.catalog_path.write_text(json.dumps(self.catalog), encoding='utf-8')
+                with patch.object(switch, 'atomic_config', wraps=switch.atomic_config) as config_write:
+                    with self.assertRaises(ValueError):
+                        self.run_switch('strata')
+                    config_write.assert_not_called()
+                self.assertEqual(self.script_calls, [])
+                self.assertEqual(self.api_calls, [])
+                self.assertEqual(self.config_path.read_bytes(), self.original)
+                self.assertFalse((self.root / 'runtime/maintenance-backups').exists())
+                self.assertFalse((self.root / 'runtime/model-switch.json').exists())
+
+    def test_strata_ple_can_use_the_main_artifact_for_swift(self):
+        profile = self.install_strata_fixture()
+        profile['backend']['pleArtifact'] = 'model'
+        self.server_config['args'][3] = str(self.candidate)
+        self.strata_config.write_text(json.dumps(self.server_config), encoding='utf-8')
+        self.catalog_path.write_text(json.dumps(self.catalog), encoding='utf-8')
+        self.run_switch('strata')
+        self.assertEqual(self.running_backend, 'strata')
+
+    def test_strata_optional_ple_metadata_does_not_break_existing_profiles(self):
+        profile = self.install_strata_fixture()
+        del profile['backend']['pleArtifact']
+        self.catalog_path.write_text(json.dumps(self.catalog), encoding='utf-8')
+        self.run_switch('strata')
+        self.assertEqual(self.running_backend, 'strata')
 
     def test_queued_cli_job_is_preserved(self):
         marker = self.root / 'runtime/agent-queue/fixture-job'
@@ -417,7 +482,7 @@ class SwitchRecovery(unittest.TestCase):
         self.install_strata_fixture()
         ready = deepcopy(self.strata_health)
         for field, value in [('service', 'llama.cpp'), ('loaded', False), ('loaded', 1),
-                             ('images', False), ('images', 1), ('max_context', 8192)]:
+                             ('images', False), ('images', 1), ('max_context', 8192), ('model', 'another-canonical')]:
             with self.subTest(field=field, value=value):
                 self.strata_health = {**ready, field: value}
                 with self.assertRaises(AssertionError):

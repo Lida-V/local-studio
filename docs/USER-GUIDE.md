@@ -29,6 +29,7 @@ Codex／ClaudeのMCPでは `current_project` と `select_project` を使いま�
 ```powershell
 & 'C:\AI\LocalLLM\Studio-CLI.cmd' model-profiles
 & 'C:\AI\LocalLLM\Studio-CLI.cmd' model-select qwen-flash-next
+& 'C:\AI\LocalLLM\Studio-CLI.cmd' model-select swift-flash-next
 ```
 
 切替は、チャット・待機中の依頼・画像動画生成が完了してから行います。履歴と会話プリセットは引き継ぎます。Strataの入力枠は131,072トークンで、履歴圧縮は画像、日本語、ツール結果と出力に余裕を残して開始します。長い資料は必要な範囲を指定してください。日本語JSON、図形画像2枚、ツール往復、通常のストリーム応答、15,673トークンの長文検索、接続切断後の復帰をAPIで検証しました。128K全体の入力は未検証です。
@@ -36,6 +37,10 @@ Codex／ClaudeのMCPでは `current_project` と `select_project` を使いま�
 Open WebUIの合成プロンプト作成とMCPの合成質問も成功しました。専用アプリの起動、GPU解放・再起動・Anima生成後の復帰も確認済みです。元の導入環境では、確認後に旧27B重みだけを削除しました。会話画面のクリック操作は今回のAPI検証には含みません。詳細とAPIのJSON schema制限は [検証範囲](VALIDATION.md#strata--qwen38-flash-next-2026-10-06) を参照してください。
 
 `model-select qwen-standard` で通常版、`model-select huihui-qwen` でHuihui版に戻せます。削除済みの重みや未準備の実行環境へは戻せません。これは会話・画像理解のバックエンド選択です。ComfyUIで使うQwen Image 2.1の選択は別の操作です。拒否の低減や創作品質は保証されません。
+
+Swift 1.5 IQ3_XXSの追加は [Swift導入手順](../README.md#swift-15-flash-next任意) と [Swift固有の検証結果](VALIDATION.md#optional-swift-15-flash-next-2026-10-06) を参照してください。準備後は `SwiftでLocal Studio.cmd` でも選べます。現在のFlash Nextの重みを保持するため、`model-select qwen-flash-next` で戻せます。会話履歴は同じDBを使用します。モデルを切り替えた後に挙動を比較する場合は、新しいチャットで試すと以前の応答の影響を分けやすくなります。
+
+このアプリが付加する制作アシスタント指示には、性的内容を一律に拒否する指定はありません。モデル自身の学習挙動や渡された会話履歴によって応答は変わります。生成された自己紹介や「自分のポリシー」の説明だけでは、実際のサーバー設定やモデルの判定根拠は分かりません。
 
 ## 作業状況と追加指示
 

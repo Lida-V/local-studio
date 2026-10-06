@@ -100,6 +100,49 @@ class RangeDownload(unittest.TestCase):
         with patch.object(range_download.urllib.request, 'urlopen', fixture), redirect_stdout(self.output):
             return range_download.download(self.entry, self.partial, **kwargs)
 
+    def test_failed_future_tracebacks_release_range_buffers(self):
+        fixture = Fixture(self.payload, failures={0: {'invalid_count': True}})
+        failure = None
+        try:
+            self.download(fixture, workers=4, chunk_size=5)
+        except range_download.RangeDownloadError as error:
+            failure = error
+        self.assertIsNotNone(failure)
+        frame = failure.__traceback__
+        inspected = set()
+        while frame:
+            name = frame.tb_frame.f_code.co_name
+            values = frame.tb_frame.f_locals
+            if frame.tb_frame.f_code is range_download.download.__code__:
+                inspected.add(name)
+                self.assertEqual(len(values['pending']), 0)
+                self.assertIsNone(values['data'])
+                self.assertIsNone(values['future'])
+            if frame.tb_frame.f_code is range_download._read_range.__code__:
+                inspected.add(name)
+                self.assertIsNone(values['data'])
+            frame = frame.tb_next
+        self.assertEqual(inspected, {'download', '_read_range'})
+        self.assertLessEqual(self.partial.stat().st_size, len(self.payload))
+
+    def test_failed_disk_sync_traceback_releases_append_buffer(self):
+        failure = None
+        with patch.object(range_download.os, 'fsync', side_effect=OSError('synthetic sync failure')):
+            try:
+                self.download(Fixture(self.payload), workers=4, chunk_size=5)
+            except OSError as error:
+                failure = error
+        self.assertIsNotNone(failure)
+        frame = failure.__traceback__
+        inspected = False
+        while frame:
+            if frame.tb_frame.f_code is range_download._append.__code__:
+                self.assertIsNone(frame.tb_frame.f_locals['data'])
+                inspected = True
+            frame = frame.tb_next
+        self.assertTrue(inspected)
+        self.assertEqual(self.partial.read_bytes(), self.payload[:5])
+
     def test_resumed_out_of_order_ranges_append_contiguously(self):
         self.partial.write_bytes(self.payload[:3])
         fixture = Fixture(self.payload, blocked_start=3)

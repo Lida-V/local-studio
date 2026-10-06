@@ -83,6 +83,57 @@
         "executable": "apps/Strata/source/.venv/Scripts/python.exe",
         "sourceRoot": "apps/Strata/source",
         "serverConfigPath": "apps/Strata/source/strata-iq3_s.json",
+        "modelName": "qwen3.8-flash-next-iq3_s",
+        "pleArtifact": "shard2",
+        "contextSize": 131072
+      }
+    },
+    {
+      "id": "swift-flash-next",
+      "label": "Swift 1.5 Flash Next IQ3_XXS / Strata",
+      "model": {
+        "path": "models/Swift-1.5-Qwen3.8-Flash-Next/IQ3_XXS/Swift-Qwen3.8-Flash-Next-GSQ-RCO-abliterated-IQ3_XXS-00001-of-00002.gguf",
+        "size": 39771812960,
+        "sha256": "83f75959e296a6380c98d5b6e906a0cde175077ffac2419fd56e7e15969d55dd"
+      },
+      "mmproj": {
+        "path": "models/Swift-1.5-Qwen3.8-Flash-Next/mmproj-Qwen3.8-Flash-Next-BF16.gguf",
+        "size": 907542944,
+        "sha256": "2e788f8c511d8093c7b43cb87b2fd7e14228340318057f8fb20c86df2efe2355"
+      },
+      "additionalArtifacts": [
+        {
+          "key": "shard2",
+          "path": "models/Swift-1.5-Qwen3.8-Flash-Next/IQ3_XXS/Swift-Qwen3.8-Flash-Next-GSQ-RCO-abliterated-IQ3_XXS-00002-of-00002.gguf",
+          "size": 36056143040,
+          "sha256": "aa59f45eaa3c02069016903862a5f8d73adfdb7ca97f9cab25f7494e9ac4b1a3"
+        },
+        {
+          "key": "swift_license",
+          "path": "models/Swift-1.5-Qwen3.8-Flash-Next/LICENSE-Swift",
+          "size": 13323,
+          "sha256": "7a3af3e6b43fcb7c486ea8167252a36a9532dcbdf02d1704a749881872ec551c"
+        },
+        {
+          "key": "qwen_license",
+          "path": "models/Swift-1.5-Qwen3.8-Flash-Next/LICENSE-Qwen",
+          "size": 3235,
+          "sha256": "a0dc422560841fd68e06d974907f8b4c709bca44a67daad2b528437bdf676c08"
+        }
+      ],
+      "source": {
+        "repo": "SC117/Swift-1.5-Qwen3.8-Flash-Next-GSQ-RCO-abliterated-GGUF",
+        "revision": "70238546d13a135459cf25d7647c3690cb7e1165",
+        "url": "https://huggingface.co/SC117/Swift-1.5-Qwen3.8-Flash-Next-GSQ-RCO-abliterated-GGUF"
+      },
+      "license": "Swift Open License 1.0 + Qwen Community License 1.0",
+      "backend": {
+        "kind": "strata",
+        "executable": "apps/Strata/source/.venv/Scripts/python.exe",
+        "sourceRoot": "apps/Strata/source",
+        "serverConfigPath": "apps/Strata/source/strata-swift-iq3_xxs.json",
+        "modelName": "swift1.5-qwen3.8-flash-next-iq3_xxs",
+        "pleArtifact": "model",
         "contextSize": 131072
       }
     }

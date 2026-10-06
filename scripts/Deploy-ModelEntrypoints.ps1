@@ -1,11 +1,17 @@
 #requires -Version 7.2
+param([string]$ProfileId)
 $ErrorActionPreference = 'Stop'
 $support = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $config = Get-Content -LiteralPath (Join-Path $support 'config/support-config.json') -Raw | ConvertFrom-Json
 $root = [IO.Path]::GetFullPath($config.target.root)
 $python = $config.chatApp.python
 $backup = Join-Path $root ('runtime/maintenance-backups/model-entries-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
-foreach ($entry in @(@('HuihuiでLocal Studio.cmd','huihui-qwen'), @('通常QwenでLocal Studio.cmd','qwen-standard'), @('Flash NextでLocal Studio.cmd','qwen-flash-next'))) {
+$entries = @(@('HuihuiでLocal Studio.cmd','huihui-qwen'), @('通常QwenでLocal Studio.cmd','qwen-standard'), @('Flash NextでLocal Studio.cmd','qwen-flash-next'), @('SwiftでLocal Studio.cmd','swift-flash-next'))
+if ($ProfileId) {
+    $entries = @($entries | Where-Object { $_[1] -eq $ProfileId })
+    if ($entries.Count -ne 1) { throw 'Unknown model profile entry.' }
+}
+foreach ($entry in $entries) {
     $path = Join-Path $root $entry[0]
     if (Test-Path -LiteralPath $path) {
         New-Item -ItemType Directory -Force -Path $backup | Out-Null

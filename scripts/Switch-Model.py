@@ -55,6 +55,48 @@ def atomic_config(path, data):
     temp.replace(path)
 
 
+def verify_strata_profile(config, profile, artifacts):
+    """Validate the selected server's actual files before any lifecycle action."""
+    if config['inference'].get('backend') != 'strata':
+        return
+    backend = profile['backend']
+    model_name = backend.get('modelName')
+    if not isinstance(model_name, str) or not model_name.strip():
+        raise ValueError('Strata profile requires its canonical modelName; nothing switched.')
+    server = json.loads(Path(config['strata']['serverConfigPath']).read_text(encoding='utf-8-sig'))
+    if not isinstance(server, dict) or server.get('model_name') != model_name:
+        raise ValueError('Strata server canonical model_name differs from the selected profile; nothing switched.')
+    args = server.get('args')
+    if not isinstance(args, list) or not all(isinstance(value, str) for value in args):
+        raise ValueError('Strata server args are malformed; nothing switched.')
+
+    def argument(flag):
+        if args.count(flag) != 1:
+            raise ValueError('Strata server must contain exactly one ' + flag + '; nothing switched.')
+        index = args.index(flag)
+        if index + 1 >= len(args) or args[index + 1].startswith('--'):
+            raise ValueError('Strata server is missing the value for ' + flag + '; nothing switched.')
+        return args[index + 1]
+
+    def matches(value, expected, label):
+        if not isinstance(value, str) or not value or not Path(value).is_absolute():
+            raise ValueError('Strata ' + label + ' must be an absolute artifact path; nothing switched.')
+        if Path(value).resolve(strict=True) != expected.resolve(strict=True):
+            raise ValueError('Strata ' + label + ' differs from the selected profile artifact; nothing switched.')
+
+    matches(argument('--native'), artifacts['model'], '--native')
+    vision = server.get('vision')
+    if not isinstance(vision, dict):
+        raise ValueError('Strata server vision configuration is missing; nothing switched.')
+    matches(vision.get('model'), artifacts['model'], 'vision.model')
+    matches(vision.get('mmproj'), artifacts['mmproj'], 'vision.mmproj')
+    ple_key = backend.get('pleArtifact')
+    if ple_key is not None:
+        if ple_key not in ('model', 'shard2') or ple_key not in artifacts:
+            raise ValueError('Strata profile pleArtifact must name its model or shard2 artifact; nothing switched.')
+        matches(argument('--ple-gguf'), artifacts[ple_key], '--ple-gguf')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('profile')
@@ -74,6 +116,7 @@ def main():
         if digest(path) != metadata[key]['sha256'].lower():
             raise RuntimeError('Installed artifact failed SHA256 verification; nothing switched.')
     changed = model_profiles.apply(config, profile)
+    verify_strata_profile(changed, profile, artifacts)
     spec = importlib.util.spec_from_file_location('studio_cli_for_switch', SUPPORT / 'scripts/Local-Studio.py')
     cli = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(cli)
@@ -151,6 +194,7 @@ def main():
                 health = model_api('/health')
                 assert health.get('service') == 'strata' and health.get('loaded') is True and health.get('images') is True
                 assert health.get('max_context') == changed['inference']['contextSize']
+                assert health.get('model') == profile['backend']['modelName']
             else:
                 assert Path(command[command.index('--model') + 1]).resolve() == artifacts['model']
             if before_model:

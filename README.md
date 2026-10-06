@@ -23,7 +23,7 @@ Windows用のローカル制作チャット。Open WebUIを専用Electronウィ�
 
 ## 対応環境
 
-Windows 10/11 x64、PowerShell 7.2以降、Python 3.11、Node.js 22.12以降、npm、uv。QwenのCUDA版には対応するNVIDIA GPUとドライバーが必要です。
+Windows 10/11 x64、PowerShell 7.2以降、Python 3.11、Node.js 22.12以降、npm、uv。任意のStrata導入にはGitも必要です。QwenのCUDA版には対応するNVIDIA GPUとドライバーが必要です。
 
 現在は `C:\AI\LocalLLM`、Qwen `127.0.0.1:18080`、Open WebUI `127.0.0.1:18081` の固定構成です。別の保存先・ポートへの変更はまだサポートしていません。初期Qwenモデル取得だけで約18 GBあり、依存関係と利用データの追加領域も必要です。基になった環境は24 GB VRAMのRTX 4090で検証しました。他GPUでの性能・適合性は未確認です。
 
@@ -97,6 +97,23 @@ pwsh -File scripts/Start-ChatApp.ps1
 
 StrataのJSON schemaは生成後の検証方式です。文法で生成を制約する方式ではなく、`response_format` とtools/MCPの併用にも制限があります。詳しくは [検証範囲とAPI制限](docs/VALIDATION.md#strata--qwen38-flash-next-2026-10-06) を参照してください。成人向け内容の適合性・拒否率・創作品質は未評価です。
 
+## Swift 1.5 Flash Next（任意）
+
+Strataの準備済み環境へ[SC117のSwift 1.5 abliterated IQ3_XXS](https://huggingface.co/SC117/Swift-1.5-Qwen3.8-Flash-Next-GSQ-RCO-abliterated-GGUF)を追加できます。2分割GGUFと独立projectorは合計約76.7GB。通常のFlash Nextを保持し、専用native packを作ります。SwiftではPLEがshard 1にあるため、通常版のpackやshard 2指定を流用できません。SHA256が一致する既存MTP runtimeだけを共有し、`--spec 4` を維持します。
+
+```powershell
+$studioPython = (Get-Content -Raw -Encoding utf8 config/support-config.json | ConvertFrom-Json).chatApp.python
+& $studioPython -B -X utf8 scripts/Install-SwiftFiles.py
+& $studioPython -B -X utf8 scripts/Prepare-SwiftStrata.py --apply
+& $studioPython -B -X utf8 scripts/Local-Studio.py model-select swift-flash-next
+& $studioPython -B -X utf8 scripts/Verify-StrataLive.py --phase all --canonical swift1.5-qwen3.8-flash-next-iq3_xxs
+pwsh -File scripts/Deploy-ModelEntrypoints.ps1 -ProfileId swift-flash-next
+```
+
+準備スクリプトはStrataの固定commit、取得物のサイズ・SHA256、共有MTPを検査し、既存packと設定を上書きしません。`--apply` を省くと確認と計画表示だけです。実行するソースフォルダは既存のLocal Studioと同じものを使います。切り戻しは `model-select qwen-flash-next`。新規PCの一括Setupや、配布者が説明する拒否低減の効果は別途検証が必要です。
+
+重みには[Swift Open License 1.0](https://huggingface.co/ukisai/Swift-1.5-Qwen3.8-Flash-Next-GSQ-RCO-GGUF/blob/b22d729eae29b5796f76fb70f91aef549b9fc52c/LICENSE)とQwen Community License 1.0が適用されます。Swiftの商用条項は関連法人を含む直近会計年度の総売上を基準にUS$1,000,000のThresholdを定義します。対象企業には別途商用ライセンスの条項があるため、ゲーム単体の売上だけで判断せず保存した原文を確認してください。
+
 ## ComfyUI（任意）
 
 別途ComfyUIを `127.0.0.1:8188` で起動します。付属ワークフローは `anima-base-v1.0.safetensors`、`qwen_3_06b_base.safetensors`、`qwen_image_vae.safetensors` と、それらのローダーに対応する環境が必要です。本リポジトリはComfyUI／モデル／カスタムノードを自動導入しません。`config/anima-chat-workflow.json` を確認し、実際の環境に合わせてください。
@@ -142,6 +159,8 @@ python scripts/Test-RangeDownload.py
 python scripts/Test-StrataLifecycle.py
 python scripts/Test-StrataChat.py
 python scripts/Test-StrataMTP.py
+python scripts/Test-SwiftStrata.py
+python scripts/Test-SwiftDownload.py
 node scripts/Test-QueueInsertion.cjs
 node --check desktop/main.cjs
 ```
@@ -154,4 +173,4 @@ Strata追加後はMCP 15ツール、合成質問のjob結果取得、Open WebUI�
 
 ## ライセンス
 
-このリポジトリの独自コードとStrataのエンジンコードはMIT。Qwen3.8 Flash Nextの重みはQwen Community License 1.0です。エンジンのMITは重みの利用条件を置き換えません。Open WebUI、Electron、llama.cpp、ComfyUI、他のモデルはそれぞれの利用条件に従います。Open WebUIの画面上の名称・ロゴは維持しています。
+このリポジトリの独自コードとStrataのエンジンコードはMIT。Qwen3.8 Flash Nextの重みはQwen Community License 1.0、Swift派生モデルにはSwift Open License 1.0の追加条件があります。エンジンのMITは重みの利用条件を置き換えません。Open WebUI、Electron、llama.cpp、ComfyUI、他のモデルはそれぞれの利用条件に従います。Open WebUIの画面上の名称・ロゴは維持しています。

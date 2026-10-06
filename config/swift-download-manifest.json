@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "checkedOn": "2026-10-06",
+  "modelRepository": "SC117/Swift-1.5-Qwen3.8-Flash-Next-GSQ-RCO-abliterated-GGUF",
+  "modelRevision": "70238546d13a135459cf25d7647c3690cb7e1165",
+  "runtimeRelease": "v0.1.39",
+  "runtimeRevision": "6f32ec070f23ced9f50e704d854d775da52591ab",
+  "modelFolder": "models/Swift-1.5-Qwen3.8-Flash-Next",
+  "license": "Swift Open License 1.0 + Qwen Community License 1.0",
+  "files": [
+    {
+      "name": "Swift-Qwen3.8-Flash-Next-GSQ-RCO-abliterated-IQ3_XXS-00001-of-00002.gguf",
+      "folder": "models/Swift-1.5-Qwen3.8-Flash-Next/IQ3_XXS",
+      "size": 39771812960,
+      "sha256": "83f75959e296a6380c98d5b6e906a0cde175077ffac2419fd56e7e15969d55dd",
+      "url": "https://huggingface.co/SC117/Swift-1.5-Qwen3.8-Flash-Next-GSQ-RCO-abliterated-GGUF/resolve/70238546d13a135459cf25d7647c3690cb7e1165/IQ3_XXS/Swift-Qwen3.8-Flash-Next-GSQ-RCO-abliterated-IQ3_XXS-00001-of-00002.gguf"
+    },
+    {
+      "name": "Swift-Qwen3.8-Flash-Next-GSQ-RCO-abliterated-IQ3_XXS-00002-of-00002.gguf",
+      "folder": "models/Swift-1.5-Qwen3.8-Flash-Next/IQ3_XXS",
+      "size": 36056143040,
+      "sha256": "aa59f45eaa3c02069016903862a5f8d73adfdb7ca97f9cab25f7494e9ac4b1a3",
+      "url": "https://huggingface.co/SC117/Swift-1.5-Qwen3.8-Flash-Next-GSQ-RCO-abliterated-GGUF/resolve/70238546d13a135459cf25d7647c3690cb7e1165/IQ3_XXS/Swift-Qwen3.8-Flash-Next-GSQ-RCO-abliterated-IQ3_XXS-00002-of-00002.gguf"
+    },
+    {
+      "name": "mmproj-Qwen3.8-Flash-Next-BF16.gguf",
+      "folder": "models/Swift-1.5-Qwen3.8-Flash-Next",
+      "size": 907542944,
+      "sha256": "2e788f8c511d8093c7b43cb87b2fd7e14228340318057f8fb20c86df2efe2355",
+      "url": "https://huggingface.co/SC117/Swift-1.5-Qwen3.8-Flash-Next-GSQ-RCO-abliterated-GGUF/resolve/70238546d13a135459cf25d7647c3690cb7e1165/mmproj-Qwen3.8-Flash-Next-BF16.gguf"
+    },
+    {
+      "name": "LICENSE-Swift",
+      "folder": "models/Swift-1.5-Qwen3.8-Flash-Next",
+      "size": 13323,
+      "sha256": "7a3af3e6b43fcb7c486ea8167252a36a9532dcbdf02d1704a749881872ec551c",
+      "url": "https://huggingface.co/ukisai/Swift-1.5-Qwen3.8-Flash-Next-GSQ-RCO-GGUF/resolve/b22d729eae29b5796f76fb70f91aef549b9fc52c/LICENSE"
+    },
+    {
+      "name": "LICENSE-Qwen",
+      "folder": "models/Swift-1.5-Qwen3.8-Flash-Next",
+      "size": 3235,
+      "sha256": "a0dc422560841fd68e06d974907f8b4c709bca44a67daad2b528437bdf676c08",
+      "url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next/resolve/de4b8e4d43b917e7706784d8bb445c9af86a3540/LICENSE"
+    }
+  ],
+  "mtpReuse": {
+    "folder": "models/Qwen3.8-Flash-Next/mtp/rt",
+    "sourceRepository": "SC117/Swift-1.5-Qwen3.8-Flash-Next-GSQ-RCO-abliterated-GGUF",
+    "sourceRevision": "70238546d13a135459cf25d7647c3690cb7e1165",
+    "files": [
+      {"name": "dense.bin", "size": 116099072, "sha256": "c724dc0b0822ada5d2977bf5bde821605feabaa64ea2e0045b67ca656329070a"},
+      {"name": "experts.bin", "size": 707788800, "sha256": "09398406be61f1f54c93861f449e48b8df0bfccbc9ec9b2b7636775a6ea9244f"},
+      {"name": "draft_vocab.bin", "size": 425196, "sha256": "b1e1d3a7a9e4bf862dcd5923ce661fb59bbd07907e594df5cf86a62ac235cb91"},
+      {"name": "dense.txt", "size": 1880, "sha256": "8773c81ebb0986e37fe94a8a9933e87be48b1fabc6889a0106bcdab179d1c2ac"}
+    ]
+  },
+  "preparation": {
+    "pack": "A new iq_pack is mandatory: native GGUF tensor offsets differ from the stock profile.",
+    "pleShard": 1,
+    "specTokens": 4,
+    "contextSize": 131072,
+    "vision": "Use this repository's projector; it differs from the stock file despite the model-card shared-base description."
+  }
+}

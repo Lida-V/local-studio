@@ -7,6 +7,7 @@ Local Studioの会話・画像理解モデルを、登録済みのプロファ�
 | `qwen-standard` | Qwen3.8-27B UD-Q4_K_M | 通常版の会話・画像理解 |
 | `huihui-qwen` | Huihui-Qwen3.8-27B abliteration済み UD-DW-Q4_K_M | 創作相談などの会話・画像理解の候補 |
 | `qwen-flash-next` | Qwen3.8 Flash Next GSQ-RCO IQ3_S / Strata 0.1.39 | 会話・画像理解・長い文脈。別途Strataの準備が必要 |
+| `swift-flash-next` | Swift 1.5 Flash Next abliterated IQ3_XXS / Strata | 追加の会話・画像理解候補。専用packの準備が必要 |
 
 Huihuiの拒否低減は配布者の説明であり、拒否しなくなることや創作品質の向上を保証しません。成人向けゲーム開発への適合・応答品質は、この選択機能の検証とは別に評価が必要です。
 
@@ -21,6 +22,7 @@ Qwen Image 2.1はComfyUIで使う画像生成モデルです。この会話モ�
 & 'C:/AI/LocalLLM/Studio-CLI.cmd' model-select huihui-qwen
 & 'C:/AI/LocalLLM/Studio-CLI.cmd' model-select qwen-standard
 & 'C:/AI/LocalLLM/Studio-CLI.cmd' model-select qwen-flash-next
+& 'C:/AI/LocalLLM/Studio-CLI.cmd' model-select swift-flash-next
 ```
 
 ソースから直接実行する場合は、サポーターのルートで設定に指定されたPythonを使います。
@@ -47,10 +49,15 @@ $studioPython = (Get-Content -Raw -Encoding utf8 config/support-config.json | Co
 - `C:/AI/LocalLLM/HuihuiでLocal Studio.cmd`: `huihui-qwen` に切り替えて専用アプリを開く。
 - `C:/AI/LocalLLM/通常QwenでLocal Studio.cmd`: `qwen-standard` に戻して専用アプリを開く。
 - `C:/AI/LocalLLM/Flash NextでLocal Studio.cmd`: 準備済みの `qwen-flash-next` に切り替える。
+- `C:/AI/LocalLLM/SwiftでLocal Studio.cmd`: 準備済みの `swift-flash-next` に切り替える。
 
 切替に失敗した場合はそこで止まり、エラーを表示します。通常の `Start-ChatApp.cmd` は現在選択された構成を使います。この版の対応先は `C:/AI/LocalLLM` 固定です。
 
 ## 固定した配布物
+
+Swiftは[SC117のSwift 1.5 abliterated GGUF](https://huggingface.co/SC117/Swift-1.5-Qwen3.8-Flash-Next-GSQ-RCO-abliterated-GGUF)のIQ3_XXSを固定revision `70238546d13a135459cf25d7647c3690cb7e1165` で追加します。2分割GGUFと独立mmprojは合計約76.7GBです。取得情報は `config/swift-download-manifest.json`。既存Flash Nextを残し、独立したnative packを作ります。SwiftのPLEはshard 1にあるため、通常版のshard 2指定やpackを流用しません。SHA256が一致するMTP runtimeのみ共有します。起動設定は `strata-swift-iq3_xxs.json`、APIの識別名は `swift1.5-qwen3.8-flash-next-iq3_xxs` です。
+
+利用条件は[Swift Open License 1.0](https://huggingface.co/ukisai/Swift-1.5-Qwen3.8-Flash-Next-GSQ-RCO-GGUF/blob/b22d729eae29b5796f76fb70f91aef549b9fc52c/LICENSE)とQwen Community License 1.0です。Swiftには商用利用の売上条件があります。直近終了した会計年度の関連法人を含む総売上を基準にUS$1,000,000のThresholdが定義され、対象企業には別途商用ライセンスの条項があります。ゲーム単体の売上だけで判断せず、同梱する原文を確認してください。配布者の拒否低減の説明は、すべての依頼への応答を保証するものではありません。
 
 Flash Nextは[ISTA-DASLabのIQ3_S](https://huggingface.co/ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-GGUF)を固定revisionで取得します。2つのGGUFと画像入力用mmprojで約84.5GB、MTP追加取得は約5.2GBです。StrataのPython環境・モデル準備にも領域が必要です。モデルの利用条件は[Qwen公式のCommunity License 1.0](https://huggingface.co/Qwen/Qwen3.8-Flash-Next)を保存し、量子化リポジトリのApache表示だけで判断しません。取得情報は `config/strata-download-manifest.json`、起動設定は `strata-iq3_s.json` です。StrataのJSON Schemaは出力後の検証方式で、構文制約をかけた生成ではありません。ツール付きの同時Schema指定は上流で非対応です。学習・既存LoRAの互換性はこの推論切替では確認しません。
 

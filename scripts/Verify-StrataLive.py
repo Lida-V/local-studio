@@ -244,12 +244,14 @@ class Verifier:
                  "parameters": {"type": "object", "properties": {"asset": {"type": "string", "enum": ["smoke-note"]}}, "required": ["asset"], "additionalProperties": False}}},
                  {"type": "function", "function": {"name": "add_numbers", "description": "2個の整数を安全に足します。",
                  "parameters": {"type": "object", "properties": {"a": {"type": "integer"}, "b": {"type": "integer"}}, "required": ["a", "b"], "additionalProperties": False}}}]
-        messages = [{"role": "user", "content": "必ずread_fixtureでsmoke-noteを読み、add_numbersで17と19を足してください。両方のツール結果を受け取った後、fixtureにメモの文字列（末尾改行を除く）、sumに足した数を入れたJSONだけを返してください。"}]
+        messages = [{"role": "user", "content": "必ずread_fixtureでsmoke-noteを読み、add_numbersで17と19を足してください。両方のツール結果を受け取った後、最終出力は英語のキーfixtureとsumだけを持つJSONオブジェクトにしてください。fixtureの値はメモの文字列（末尾改行を除く）、sumの値は足した整数です。出力形式は{\"fixture\":\"メモの文字列\",\"sum\":整数}です。キーを翻訳・変更せず、説明やMarkdownのコードブロックを付けずにJSONだけを返してください。"}]
         calls_seen, rounds = set(), []
         for _ in range(6):
             response, metrics = self.completion(completion_payload(self.model, messages, tools=tools, max_tokens=512))
             message, finish = answer_of(response)
             rounds.append({"response": response, **metrics})
+            (self.out / f"tool-loop-round-{len(rounds)}.json").write_text(
+                json.dumps(rounds[-1], ensure_ascii=False, indent=2), encoding="utf-8")
             calls = message.get("tool_calls") or []
             if not calls:
                 answer = json.loads(message.get("content") or "")
@@ -389,7 +391,7 @@ class Verifier:
                 "elapsed_seconds": round(time.perf_counter() - start, 3)}
 
     def run(self):
-        phases = {"smoke": [("japanese_schema_alias", self.japanese_schema_alias), ("vision", lambda: self.vision(False)),
+        phases = {"tools": [("tool_loop", self.tool_loop)], "smoke": [("japanese_schema_alias", self.japanese_schema_alias), ("vision", lambda: self.vision(False)),
                             ("vision_swapped", lambda: self.vision(True)), ("tool_loop", self.tool_loop), ("stream_text", self.stream_text)],
                   "long": [("long_context", self.long_context)], "cancel": [("cancel", self.cancel_own_request)]}
         selected = ["smoke", "long", "cancel"] if self.args.phase == "all" else [self.args.phase]
@@ -411,7 +413,7 @@ class Verifier:
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--phase", choices=("smoke", "long", "cancel", "all"), default="smoke")
+    parser.add_argument("--phase", choices=("smoke", "tools", "long", "cancel", "all"), default="smoke")
     parser.add_argument("--config", default=str(SUPPORTER / "config/support-config.json"))
     parser.add_argument("--url", help="Override the local base URL for an isolated test server")
     parser.add_argument("--canonical", default=CANONICAL)

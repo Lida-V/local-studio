@@ -83,6 +83,9 @@ def _read_range(url, start, end, total, cancelled):
             return start, data
         except Exception:
             if cancelled.is_set() or attempt + 1 == ATTEMPTS:
+                # A Future retains its exception traceback. Do not let that
+                # traceback retain a failed range's large bytearray.
+                data = None
                 raise
     raise AssertionError('Unreachable range retry state.')
 
@@ -102,6 +105,7 @@ def _append(stream, data):
                 window.release()
     finally:
         view.release()
+        data = None
     stream.flush()
     os.fsync(stream.fileno())
 
@@ -144,6 +148,7 @@ def download(entry, partial, workers=4, chunk_size=64 * MIB):
     pending = deque()
     executor = ThreadPoolExecutor(max_workers=workers, thread_name_prefix='gguf-range')
     next_start = offset
+    data = future = None
     try:
         # Unbuffered append never creates holes or reserves the final file size.
         with partial.open('ab', buffering=0) as stream:
@@ -179,5 +184,11 @@ def download(entry, partial, workers=4, chunk_size=64 * MIB):
         cancelled.set()
         for _, _, future in pending:
             future.cancel()
-        executor.shutdown(wait=True, cancel_futures=True)
+        try:
+            executor.shutdown(wait=True, cancel_futures=True)
+        finally:
+            # Completed Futures retain successful buffers too. Clear both the
+            # pending window and the popped/local references on failure.
+            pending.clear()
+            data = future = None
     return partial
